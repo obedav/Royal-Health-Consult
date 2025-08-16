@@ -1,0 +1,781 @@
+// src/components/booking/PatientInformationForm.tsx
+import {
+  Box,
+  Container,
+  VStack,
+  HStack,
+  Heading,
+  Text,
+  SimpleGrid,
+  Card,
+  CardBody,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Input,
+  Select,
+  Textarea,
+  Checkbox,
+  CheckboxGroup,
+  Radio,
+  RadioGroup,
+  Stack,
+  Button,
+  Icon,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
+  Badge,
+  Divider,
+  useColorModeValue,
+  Switch,
+  FormHelperText,
+} from '@chakra-ui/react'
+import {
+  FaUser,
+  FaHeart,
+  FaPills,
+  FaExclamationTriangle,
+  FaPhone,
+  FaIdCard,
+  FaCheckCircle,
+  FaInfoCircle,
+} from 'react-icons/fa'
+import { useState, useEffect } from 'react'
+import { BookingService } from '../../types/booking.types'
+import { ScheduleData } from './AppointmentScheduling'
+
+interface PatientFormProps {
+  selectedService: BookingService
+  selectedSchedule: ScheduleData
+  onPatientInfoSubmit: (patientData: PatientInformation) => void
+  patientInfo?: PatientInformation
+}
+
+export interface PatientInformation {
+  // Personal Information
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  dateOfBirth: string
+  gender: 'male' | 'female' | 'prefer_not_to_say'
+  nationalId?: string
+  
+  // Medical Information
+  medicalHistory: {
+    conditions: string[]
+    currentMedications: string[]
+    allergies: string[]
+    previousSurgeries: string[]
+    hospitalizations: string[]
+  }
+  
+  // Emergency Contacts
+  emergencyContact: {
+    name: string
+    relationship: string
+    phone: string
+    address?: string
+  }
+  
+  // Additional Information
+  insuranceProvider?: string
+  insuranceNumber?: string
+  preferredLanguage: string
+  specialNeeds?: string
+  
+  // Consents
+  consentToTreatment: boolean
+  consentToDataProcessing: boolean
+  consentToSMSUpdates: boolean
+  
+  // Service-specific information
+  serviceSpecificInfo?: Record<string, any>
+}
+
+const PatientInformationForm: React.FC<PatientFormProps> = ({
+  selectedService,
+  selectedSchedule,
+  onPatientInfoSubmit,
+  patientInfo,
+}) => {
+  const cardBg = useColorModeValue('white', 'gray.800')
+  const borderColor = useColorModeValue('gray.200', 'gray.600')
+
+  // Form state
+  const [formData, setFormData] = useState<PatientInformation>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    dateOfBirth: '',
+    gender: 'prefer_not_to_say',
+    nationalId: '',
+    medicalHistory: {
+      conditions: [],
+      currentMedications: [],
+      allergies: [],
+      previousSurgeries: [],
+      hospitalizations: []
+    },
+    emergencyContact: {
+      name: '',
+      relationship: '',
+      phone: '',
+      address: ''
+    },
+    insuranceProvider: '',
+    insuranceNumber: '',
+    preferredLanguage: 'English',
+    specialNeeds: '',
+    consentToTreatment: false,
+    consentToDataProcessing: false,
+    consentToSMSUpdates: false,
+    serviceSpecificInfo: {}
+  })
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isFormValid, setIsFormValid] = useState(false)
+
+  // Pre-populate if patient info exists
+  useEffect(() => {
+    if (patientInfo) {
+      setFormData(patientInfo)
+    }
+  }, [patientInfo])
+
+  // Common medical conditions for quick selection
+  const commonConditions = [
+    'Hypertension (High Blood Pressure)',
+    'Diabetes Type 1',
+    'Diabetes Type 2',
+    'Heart Disease',
+    'Asthma',
+    'Arthritis',
+    'High Cholesterol',
+    'Kidney Disease',
+    'Liver Disease',
+    'Mental Health Conditions',
+    'Cancer',
+    'Stroke',
+    'Epilepsy',
+    'Thyroid Disorders'
+  ]
+
+  const commonAllergies = [
+    'Penicillin',
+    'Aspirin',
+    'Ibuprofen',
+    'Codeine',
+    'Latex',
+    'Shellfish',
+    'Nuts',
+    'Eggs',
+    'Dairy',
+    'Dust',
+    'Pollen',
+    'Pet Dander'
+  ]
+
+  const relationshipOptions = [
+    'Spouse/Partner',
+    'Parent',
+    'Child',
+    'Sibling',
+    'Relative',
+    'Friend',
+    'Guardian',
+    'Neighbor'
+  ]
+
+  const nigerianLanguages = [
+    'English',
+    'Hausa',
+    'Yoruba',
+    'Igbo',
+    'Pidgin English',
+    'Fulfulde',
+    'Kanuri',
+    'Tiv',
+    'Edo',
+    'Efik'
+  ]
+
+  const insuranceProviders = [
+    'NHIS (National Health Insurance Scheme)',
+    'AIICO Insurance',
+    'AXA Mansard',
+    'Leadway Health',
+    'Hygeia HMO',
+    'Total Health Trust',
+    'Reliance HMO',
+    'Clearline HMO',
+    'Other',
+    'No Insurance'
+  ]
+
+  // Validation function
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    // Required fields validation
+    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
+    if (!formData.email.trim()) newErrors.email = 'Email is required'
+    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required'
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required'
+    if (!formData.emergencyContact.name.trim()) newErrors.emergencyContactName = 'Emergency contact name is required'
+    if (!formData.emergencyContact.phone.trim()) newErrors.emergencyContactPhone = 'Emergency contact phone is required'
+    if (!formData.emergencyContact.relationship) newErrors.emergencyContactRelationship = 'Relationship is required'
+
+    // Email validation
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
+
+    // Phone validation (Nigerian format)
+    if (formData.phone && !/^(\+234|0)[7-9][0-1]\d{8}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Please enter a valid Nigerian phone number'
+    }
+
+    // Age validation
+    if (formData.dateOfBirth) {
+      const today = new Date()
+      const birthDate = new Date(formData.dateOfBirth)
+      const age = today.getFullYear() - birthDate.getFullYear()
+      if (age < 0 || age > 120) {
+        newErrors.dateOfBirth = 'Please enter a valid date of birth'
+      }
+    }
+
+    // Consent validation
+    if (!formData.consentToTreatment) {
+      newErrors.consentToTreatment = 'Consent to treatment is required'
+    }
+    if (!formData.consentToDataProcessing) {
+      newErrors.consentToDataProcessing = 'Consent to data processing is required'
+    }
+
+    setErrors(newErrors)
+    const isValid = Object.keys(newErrors).length === 0
+    setIsFormValid(isValid)
+    
+    return isValid
+  }
+
+  // Update form data
+  const updateFormData = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const updateNestedFormData = (section: string, field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section as keyof PatientInformation],
+        [field]: value
+      }
+    }))
+  }
+
+  const updateMedicalHistory = (field: string, values: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      medicalHistory: {
+        ...prev.medicalHistory,
+        [field]: values
+      }
+    }))
+  }
+
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null
+    const today = new Date()
+    const birthDate = new Date(dateOfBirth)
+    const age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      return age - 1
+    }
+    return age
+  }
+
+  // Handle form submission
+  const handleSubmit = () => {
+    if (validateForm()) {
+      onPatientInfoSubmit(formData)
+    }
+  }
+
+  // Validate on form changes
+  useEffect(() => {
+    validateForm()
+  }, [formData])
+
+  const age = calculateAge(formData.dateOfBirth)
+
+  return (
+    <Container maxW="4xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        {/* Header */}
+        <VStack spacing={4} textAlign="center">
+          <Heading size="lg" color="gray.800">
+            Patient Information
+          </Heading>
+          <Text color="gray.600">
+            Please provide your information to help us deliver the best care possible
+          </Text>
+          
+          {/* Appointment Summary */}
+          <Card bg="primary.50" borderColor="primary.200" w="full" maxW="600px">
+            <CardBody p={4}>
+              <VStack spacing={2}>
+                <Text fontWeight="600" color="primary.700">
+                  {selectedService.name} with {selectedSchedule.nurse.name}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  {new Date(selectedSchedule.date).toLocaleDateString('en-NG', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })} at {selectedSchedule.timeSlot.time}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  {selectedSchedule.address.street}, {selectedSchedule.address.state}
+                </Text>
+              </VStack>
+            </CardBody>
+          </Card>
+        </VStack>
+
+        {/* Personal Information */}
+        <Card bg={cardBg} borderColor={borderColor}>
+          <CardBody p={6}>
+            <VStack spacing={6} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaUser} color="primary.500" />
+                <Heading size="md">Personal Information</Heading>
+              </HStack>
+              
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                <FormControl isRequired isInvalid={!!errors.firstName}>
+                  <FormLabel>First Name</FormLabel>
+                  <Input
+                    value={formData.firstName}
+                    onChange={(e) => updateFormData('firstName', e.target.value)}
+                    placeholder="Enter your first name"
+                  />
+                  <FormErrorMessage>{errors.firstName}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isRequired isInvalid={!!errors.lastName}>
+                  <FormLabel>Last Name</FormLabel>
+                  <Input
+                    value={formData.lastName}
+                    onChange={(e) => updateFormData('lastName', e.target.value)}
+                    placeholder="Enter your last name"
+                  />
+                  <FormErrorMessage>{errors.lastName}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isRequired isInvalid={!!errors.email}>
+                  <FormLabel>Email Address</FormLabel>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => updateFormData('email', e.target.value)}
+                    placeholder="your.email@example.com"
+                  />
+                  <FormErrorMessage>{errors.email}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isRequired isInvalid={!!errors.phone}>
+                  <FormLabel>Phone Number</FormLabel>
+                  <Input
+                    value={formData.phone}
+                    onChange={(e) => updateFormData('phone', e.target.value)}
+                    placeholder="+234 801 234 5678"
+                  />
+                  <FormErrorMessage>{errors.phone}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isRequired isInvalid={!!errors.dateOfBirth}>
+                  <FormLabel>Date of Birth</FormLabel>
+                  <Input
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => updateFormData('dateOfBirth', e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                  {age && (
+                    <FormHelperText>Age: {age} years old</FormHelperText>
+                  )}
+                  <FormErrorMessage>{errors.dateOfBirth}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Gender</FormLabel>
+                  <RadioGroup
+                    value={formData.gender}
+                    onChange={(value) => updateFormData('gender', value)}
+                  >
+                    <Stack direction="row" spacing={4}>
+                      <Radio value="male">Male</Radio>
+                      <Radio value="female">Female</Radio>
+                      <Radio value="prefer_not_to_say">Prefer not to say</Radio>
+                    </Stack>
+                  </RadioGroup>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>National ID / BVN (Optional)</FormLabel>
+                  <Input
+                    value={formData.nationalId}
+                    onChange={(e) => updateFormData('nationalId', e.target.value)}
+                    placeholder="22123456789"
+                  />
+                  <FormHelperText>For identity verification purposes</FormHelperText>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Preferred Language</FormLabel>
+                  <Select
+                    value={formData.preferredLanguage}
+                    onChange={(e) => updateFormData('preferredLanguage', e.target.value)}
+                  >
+                    {nigerianLanguages.map(lang => (
+                      <option key={lang} value={lang}>{lang}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </SimpleGrid>
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Medical History */}
+        <Card bg={cardBg} borderColor={borderColor}>
+          <CardBody p={6}>
+            <VStack spacing={6} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaHeart} color="red.500" />
+                <Heading size="md">Medical History</Heading>
+              </HStack>
+
+              <Alert status="info">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>Important!</AlertTitle>
+                  <AlertDescription fontSize="sm">
+                    Please provide accurate medical information to ensure safe and effective care. 
+                    All information is kept confidential.
+                  </AlertDescription>
+                </Box>
+              </Alert>
+
+              <VStack spacing={4} w="full" align="start">
+                <FormControl>
+                  <FormLabel>Current Medical Conditions</FormLabel>
+                  <CheckboxGroup
+                    value={formData.medicalHistory.conditions}
+                    onChange={(values) => updateMedicalHistory('conditions', values as string[])}
+                  >
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={2}>
+                      {commonConditions.map(condition => (
+                        <Checkbox key={condition} value={condition} size="sm">
+                          {condition}
+                        </Checkbox>
+                      ))}
+                    </SimpleGrid>
+                  </CheckboxGroup>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Current Medications</FormLabel>
+                  <Textarea
+                    value={formData.medicalHistory.currentMedications.join(', ')}
+                    onChange={(e) => updateMedicalHistory('currentMedications', 
+                      e.target.value.split(',').map(med => med.trim()).filter(med => med)
+                    )}
+                    placeholder="List all medications you're currently taking (e.g., Lisinopril 10mg daily, Metformin 500mg twice daily)"
+                    rows={3}
+                  />
+                  <FormHelperText>Include dosage and frequency if known</FormHelperText>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Allergies</FormLabel>
+                  <CheckboxGroup
+                    value={formData.medicalHistory.allergies}
+                    onChange={(values) => updateMedicalHistory('allergies', values as string[])}
+                  >
+                    <SimpleGrid columns={{ base: 2, md: 3 }} spacing={2}>
+                      {commonAllergies.map(allergy => (
+                        <Checkbox key={allergy} value={allergy} size="sm">
+                          {allergy}
+                        </Checkbox>
+                      ))}
+                    </SimpleGrid>
+                  </CheckboxGroup>
+                  <Textarea
+                    mt={3}
+                    value={formData.medicalHistory.allergies
+                      .filter(allergy => !commonAllergies.includes(allergy))
+                      .join(', ')}
+                    onChange={(e) => {
+                      const customAllergies = e.target.value.split(',').map(a => a.trim()).filter(a => a)
+                      const selectedCommonAllergies = formData.medicalHistory.allergies
+                        .filter(allergy => commonAllergies.includes(allergy))
+                      updateMedicalHistory('allergies', [...selectedCommonAllergies, ...customAllergies])
+                    }}
+                    placeholder="Other allergies not listed above"
+                    rows={2}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Previous Surgeries (if any)</FormLabel>
+                  <Textarea
+                    value={formData.medicalHistory.previousSurgeries.join(', ')}
+                    onChange={(e) => updateMedicalHistory('previousSurgeries',
+                      e.target.value.split(',').map(surgery => surgery.trim()).filter(surgery => surgery)
+                    )}
+                    placeholder="List any previous surgeries and approximate dates"
+                    rows={2}
+                  />
+                </FormControl>
+              </VStack>
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Emergency Contact */}
+        <Card bg={cardBg} borderColor={borderColor}>
+          <CardBody p={6}>
+            <VStack spacing={6} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaPhone} color="orange.500" />
+                <Heading size="md">Emergency Contact</Heading>
+              </HStack>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                <FormControl isRequired isInvalid={!!errors.emergencyContactName}>
+                  <FormLabel>Full Name</FormLabel>
+                  <Input
+                    value={formData.emergencyContact.name}
+                    onChange={(e) => updateNestedFormData('emergencyContact', 'name', e.target.value)}
+                    placeholder="Emergency contact full name"
+                  />
+                  <FormErrorMessage>{errors.emergencyContactName}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isRequired isInvalid={!!errors.emergencyContactRelationship}>
+                  <FormLabel>Relationship</FormLabel>
+                  <Select
+                    value={formData.emergencyContact.relationship}
+                    onChange={(e) => updateNestedFormData('emergencyContact', 'relationship', e.target.value)}
+                    placeholder="Select relationship"
+                  >
+                    {relationshipOptions.map(relationship => (
+                      <option key={relationship} value={relationship}>{relationship}</option>
+                    ))}
+                  </Select>
+                  <FormErrorMessage>{errors.emergencyContactRelationship}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isRequired isInvalid={!!errors.emergencyContactPhone}>
+                  <FormLabel>Phone Number</FormLabel>
+                  <Input
+                    value={formData.emergencyContact.phone}
+                    onChange={(e) => updateNestedFormData('emergencyContact', 'phone', e.target.value)}
+                    placeholder="+234 801 234 5678"
+                  />
+                  <FormErrorMessage>{errors.emergencyContactPhone}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Address (Optional)</FormLabel>
+                  <Input
+                    value={formData.emergencyContact.address}
+                    onChange={(e) => updateNestedFormData('emergencyContact', 'address', e.target.value)}
+                    placeholder="Emergency contact address"
+                  />
+                </FormControl>
+              </SimpleGrid>
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Insurance Information */}
+        <Card bg={cardBg} borderColor={borderColor}>
+          <CardBody p={6}>
+            <VStack spacing={6} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaIdCard} color="blue.500" />
+                <Heading size="md">Insurance Information (Optional)</Heading>
+              </HStack>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                <FormControl>
+                  <FormLabel>Insurance Provider</FormLabel>
+                  <Select
+                    value={formData.insuranceProvider}
+                    onChange={(e) => updateFormData('insuranceProvider', e.target.value)}
+                    placeholder="Select insurance provider"
+                  >
+                    {insuranceProviders.map(provider => (
+                      <option key={provider} value={provider}>{provider}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>Insurance Number</FormLabel>
+                  <Input
+                    value={formData.insuranceNumber}
+                    onChange={(e) => updateFormData('insuranceNumber', e.target.value)}
+                    placeholder="Your insurance number/ID"
+                  />
+                </FormControl>
+              </SimpleGrid>
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Additional Information */}
+        <Card bg={cardBg} borderColor={borderColor}>
+          <CardBody p={6}>
+            <VStack spacing={6} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaInfoCircle} color="purple.500" />
+                <Heading size="md">Additional Information</Heading>
+              </HStack>
+
+              <FormControl>
+                <FormLabel>Special Needs or Accessibility Requirements</FormLabel>
+                <Textarea
+                  value={formData.specialNeeds}
+                  onChange={(e) => updateFormData('specialNeeds', e.target.value)}
+                  placeholder="Any special accommodations needed (e.g., wheelchair access, hearing assistance, language interpretation)"
+                  rows={3}
+                />
+              </FormControl>
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Consent and Agreements */}
+        <Card bg={cardBg} borderColor={borderColor}>
+          <CardBody p={6}>
+            <VStack spacing={6} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaCheckCircle} color="green.500" />
+                <Heading size="md">Consent and Agreements</Heading>
+              </HStack>
+
+              <VStack spacing={4} align="start" w="full">
+                <FormControl isInvalid={!!errors.consentToTreatment}>
+                  <HStack spacing={3}>
+                    <Checkbox
+                      isChecked={formData.consentToTreatment}
+                      onChange={(e) => updateFormData('consentToTreatment', e.target.checked)}
+                      colorScheme="primary"
+                    />
+                    <Box>
+                      <Text fontWeight="600">Consent to Treatment *</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        I consent to receive healthcare services from Royal Health Consult and 
+                        understand the nature of the services being provided.
+                      </Text>
+                    </Box>
+                  </HStack>
+                  <FormErrorMessage>{errors.consentToTreatment}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isInvalid={!!errors.consentToDataProcessing}>
+                  <HStack spacing={3}>
+                    <Checkbox
+                      isChecked={formData.consentToDataProcessing}
+                      onChange={(e) => updateFormData('consentToDataProcessing', e.target.checked)}
+                      colorScheme="primary"
+                    />
+                    <Box>
+                      <Text fontWeight="600">Data Processing Consent *</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        I agree to the processing of my personal and medical data as outlined 
+                        in the Privacy Policy for the purpose of providing healthcare services.
+                      </Text>
+                    </Box>
+                  </HStack>
+                  <FormErrorMessage>{errors.consentToDataProcessing}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl>
+                  <HStack spacing={3}>
+                    <Checkbox
+                      isChecked={formData.consentToSMSUpdates}
+                      onChange={(e) => updateFormData('consentToSMSUpdates', e.target.checked)}
+                      colorScheme="primary"
+                    />
+                    <Box>
+                      <Text fontWeight="600">SMS Updates (Optional)</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        I would like to receive appointment reminders and health tips via SMS.
+                      </Text>
+                    </Box>
+                  </HStack>
+                </FormControl>
+              </VStack>
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Form Summary */}
+        {isFormValid && (
+          <Alert status="success">
+            <AlertIcon />
+            <Box>
+              <AlertTitle>Information Complete!</AlertTitle>
+              <AlertDescription>
+                All required information has been provided. You can now proceed to payment.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        )}
+
+        {!isFormValid && Object.keys(errors).length > 0 && (
+          <Alert status="error">
+            <AlertIcon />
+            <Box>
+              <AlertTitle>Please Complete Required Fields</AlertTitle>
+              <AlertDescription>
+                Some required information is missing. Please fill in all required fields marked with *.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        )}
+
+        {/* Submit Button */}
+        <Button
+          size="lg"
+          colorScheme="primary"
+          onClick={handleSubmit}
+          isDisabled={!isFormValid}
+          w="full"
+          py={6}
+        >
+          Continue to Payment
+        </Button>
+      </VStack>
+    </Container>
+  )
+}
+
+export default PatientInformationForm
