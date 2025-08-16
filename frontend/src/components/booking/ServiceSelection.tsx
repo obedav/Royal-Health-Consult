@@ -25,15 +25,17 @@ import {
   FaAmbulance,
   FaClock,
   FaTag,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaClipboardCheck,
+  FaBaby
 } from 'react-icons/fa'
-import { MdHealthAndSafety, MdElderlyWoman } from 'react-icons/md'
+import { MdHealthAndSafety, MdElderlyWoman, MdPsychology } from 'react-icons/md'
 import { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { BookingService } from '../../types/booking.types'
 
-// Import shared service data from Services page
-import { healthcareServices } from '../../pages/Services'
+// Import assessment data from constants - FIXED IMPORT
+import { healthcareAssessments } from '../../constants/assessments'
 
 interface ServiceSelectionProps {
   onServiceSelect: (service: BookingService) => void
@@ -49,8 +51,8 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  // Convert healthcareServices to BookingService format
-  const services: BookingService[] = healthcareServices.map(service => ({
+  // Convert healthcareAssessments to BookingService format
+  const services: BookingService[] = healthcareAssessments.map(service => ({
     id: service.id,
     name: service.name,
     description: service.shortDescription || service.description,
@@ -82,7 +84,10 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
       'FaStethoscope': FaStethoscope,
       'FaWheelchair': FaWheelchair,
       'FaSyringe': FaSyringe,
-      'FaAmbulance': FaAmbulance
+      'FaAmbulance': FaAmbulance,
+      'MdPsychology': MdPsychology,
+      'FaBaby': FaBaby,
+      'FaClipboardCheck': FaClipboardCheck
     }
     return iconMap[iconName] || FaHome
   }
@@ -102,6 +107,16 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
   }
 
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      general: 'blue',
+      specialized: 'purple',
+      routine: 'green',
+      emergency: 'red'
+    }
+    return colors[category as keyof typeof colors] || 'gray'
+  }
+
   return (
     <Box bg="gray.50" minH="calc(100vh - 80px)" py={8} w="100%">
       <Container maxW="1200px" centerContent>
@@ -109,12 +124,34 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
           {/* Header */}
           <VStack spacing={6} textAlign="center" maxW="700px" px={4}>
             <Heading size="xl" color="gray.800">
-              Choose Your Healthcare Service
+              Choose Your Health Assessment
             </Heading>
             <Text color="gray.600" fontSize="lg">
-              Select the type of professional healthcare service you need. 
-              Our qualified nurses will provide care in the comfort of your home.
+              Select the type of comprehensive health assessment you need. 
+              All assessments are conducted by qualified healthcare professionals in your home.
             </Text>
+            
+            {/* Assessment Value Highlight */}
+            <Box 
+              bg="primary.50" 
+              border="2px solid" 
+              borderColor="primary.200" 
+              borderRadius="lg" 
+              p={4} 
+              maxW="500px"
+            >
+              <VStack spacing={1}>
+                <Text fontSize="sm" color="primary.600" fontWeight="600">
+                  COMPREHENSIVE HEALTH ASSESSMENTS
+                </Text>
+                <Text fontSize="lg" fontWeight="bold" color="primary.500">
+                  Professional Evaluation • Detailed Report • Home Comfort
+                </Text>
+                <Text fontSize="xs" color="gray.600" textAlign="center">
+                  Fixed pricing for all assessment types • Payment details shown at checkout
+                </Text>
+              </VStack>
+            </Box>
             
             {/* Link to detailed services page */}
             <Text fontSize="sm" color="gray.500">
@@ -126,7 +163,7 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                 cursor="pointer"
                 _hover={{ textDecoration: 'underline' }}
               >
-                View detailed service information
+                View detailed assessment information
                 <Icon as={FaExternalLinkAlt} ml={1} fontSize="xs" />
               </Link>
             </Text>
@@ -145,12 +182,12 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
             >
               <Text fontSize="sm" color="primary.700" textAlign="center">
                 <Text as="span" fontWeight="600">{selectedService.name}</Text> is pre-selected. 
-                You can change your selection below or continue with this service.
+                You can change your selection below or continue with this assessment.
               </Text>
             </Box>
           )}
 
-          {/* Services Grid - Streamlined for booking */}
+          {/* Assessment Services Grid */}
           <Box w="full" px={4}>
             <SimpleGrid 
               columns={{ base: 1, md: 2, xl: 3 }} 
@@ -201,7 +238,7 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
 
                   <CardBody p={6} display="flex" flexDirection="column" h="full">
                     <VStack spacing={5} align="center" flex={1}>
-                      {/* Service Icon & Category */}
+                      {/* Assessment Icon & Category */}
                       <VStack spacing={2}>
                         <Box
                           w={14}
@@ -216,7 +253,7 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                           <Icon as={IconComponent} color="primary.500" fontSize="2xl" />
                         </Box>
                         <Badge 
-                          colorScheme={service.category === 'emergency' ? 'red' : 'blue'}
+                          colorScheme={getCategoryColor(service.category)}
                           variant="subtle"
                           textTransform="capitalize"
                           px={2}
@@ -224,11 +261,11 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                           borderRadius="full"
                           fontSize="xs"
                         >
-                          {service.category}
+                          {service.category} Assessment
                         </Badge>
                       </VStack>
 
-                      {/* Service Details - Simplified for booking */}
+                      {/* Assessment Details - Simplified for booking */}
                       <VStack spacing={2} align="center" flex={1} justify="center">
                         <Heading size="sm" color="gray.800" lineHeight="1.3" textAlign="center">
                           {service.name}
@@ -238,23 +275,17 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                         </Text>
                       </VStack>
 
-                      {/* Pricing & Duration - Compact */}
+                      {/* Assessment Duration Only */}
                       <VStack spacing={3} w="full">
-                        <HStack justify="center" spacing={4}>
-                          <VStack spacing={0}>
-                            <Text fontSize="lg" fontWeight="bold" color="primary.500">
-                              {formatPrice(service.price)}
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">Starting price</Text>
-                          </VStack>
-                          <Box w="1px" h="8" bg="gray.300" />
-                          <VStack spacing={0}>
-                            <Text fontSize="sm" fontWeight="medium" color="gray.700">
-                              {formatDuration(service.duration)}
-                            </Text>
-                            <Text fontSize="xs" color="gray.500">Duration</Text>
-                          </VStack>
-                        </HStack>
+                        <VStack spacing={1}>
+                          <HStack spacing={1}>
+                            <Icon as={FaClock} color="gray.500" fontSize="sm" />
+                            <Text fontSize="xs" color="gray.500">Assessment Duration</Text>
+                          </HStack>
+                          <Text fontSize="md" fontWeight="medium" color="gray.700">
+                            {formatDuration(service.duration)}
+                          </Text>
+                        </VStack>
 
                         {/* Requirements - Simplified */}
                         {service.requirements && (
@@ -264,7 +295,7 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                           </Text>
                         )}
 
-                        {/* Select Button */}
+                        {/* Select Assessment Button */}
                         <Button
                           w="full"
                           variant={isSelected ? "solid" : "outline"}
@@ -277,7 +308,7 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                           fontWeight="bold"
                           fontSize="sm"
                         >
-                          {isSelected ? 'Selected ✓' : 'Select Service'}
+                          {isSelected ? 'Selected ✓' : 'Select Assessment'}
                         </Button>
                       </VStack>
                     </VStack>
@@ -286,6 +317,52 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
               )
             })}
             </SimpleGrid>
+          </Box>
+
+          {/* Assessment Information */}
+          <Box maxW="800px" w="full" px={4}>
+            <Box
+              bg="blue.50"
+              border="1px"
+              borderColor="blue.200"
+              borderRadius="xl"
+              p={6}
+            >
+              <VStack spacing={4}>
+                <Heading size="md" color="blue.800" textAlign="center">
+                  What to Expect from Your Assessment
+                </Heading>
+                <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} w="full">
+                  {[
+                    {
+                      icon: FaStethoscope,
+                      title: 'Professional Evaluation',
+                      description: 'Comprehensive health assessment by qualified healthcare professionals'
+                    },
+                    {
+                      icon: FaClipboardCheck,
+                      title: 'Detailed Report',
+                      description: 'Written assessment report with findings and recommendations within 24 hours'
+                    },
+                    {
+                      icon: FaHome,
+                      title: 'Home Comfort',
+                      description: 'All assessments conducted in the privacy and comfort of your own home'
+                    }
+                  ].map((item, index) => (
+                    <VStack key={index} spacing={2} textAlign="center">
+                      <Icon as={item.icon} color="blue.500" fontSize="2xl" />
+                      <Text fontSize="sm" fontWeight="600" color="blue.800">
+                        {item.title}
+                      </Text>
+                      <Text fontSize="xs" color="blue.600" lineHeight="1.4">
+                        {item.description}
+                      </Text>
+                    </VStack>
+                  ))}
+                </SimpleGrid>
+              </VStack>
+            </Box>
           </Box>
 
           {/* Emergency Notice */}
@@ -305,7 +382,7 @@ const ServiceSelection: React.FC<ServiceSelectionProps> = ({
                   </Text>
                   <Text fontSize="xs" color="red.600" lineHeight="1.4">
                     For life-threatening emergencies, call <strong>199 (Nigeria Emergency)</strong> 
-                    or go to the nearest hospital. Our services are for non-emergency healthcare.
+                    or go to the nearest hospital. Our assessment services are for non-emergency health evaluations.
                   </Text>
                 </VStack>
               </HStack>

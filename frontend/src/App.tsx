@@ -1,4 +1,4 @@
-// src/App.tsx - Updated with proper route protection
+// src/App.tsx - Updated with proper route protection and About/Contact components
 import { ChakraProvider } from '@chakra-ui/react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -17,21 +17,11 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Services from './pages/Services'
 import Dashboard from './pages/Dashboard'
+import About from './pages/About'
+import Contact from './pages/Contact'
 
-// Simple components for other pages
-const About = () => (
-  <div style={{ padding: '40px', textAlign: 'center' }}>
-    <h2>About Page</h2>
-    <p>Learn more about Royal Health Consult</p>
-  </div>
-)
-
-const Contact = () => (
-  <div style={{ padding: '40px', textAlign: 'center' }}>
-    <h2>Contact Page</h2>
-    <p>Get in touch with us</p>
-  </div>
-)
+// Admin components (if you want to add admin routes)
+// import AdminDashboard from './components/admin/AdminDashboard'
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -78,6 +68,53 @@ function App() {
                       <ProtectedRoute>
                         <Booking />
                       </ProtectedRoute>
+                    } 
+                  />
+                  
+                  {/* Admin routes (uncomment if you want admin access) */}
+                  {/*
+                  <Route 
+                    path="/admin" 
+                    element={
+                      <ProtectedRoute requiredRole="admin">
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  */}
+                  
+                  {/* Catch all route - 404 page */}
+                  <Route 
+                    path="*" 
+                    element={
+                      <div style={{ 
+                        padding: '80px 40px', 
+                        textAlign: 'center', 
+                        minHeight: '60vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
+                        <h1 style={{ fontSize: '4rem', color: '#E53E3E', marginBottom: '1rem' }}>404</h1>
+                        <h2 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#2D3748' }}>Page Not Found</h2>
+                        <p style={{ fontSize: '1.2rem', color: '#718096', marginBottom: '2rem' }}>
+                          The page you're looking for doesn't exist.
+                        </p>
+                        <a 
+                          href="/" 
+                          style={{ 
+                            padding: '12px 24px', 
+                            backgroundColor: '#9F7AEA', 
+                            color: 'white', 
+                            textDecoration: 'none', 
+                            borderRadius: '8px',
+                            fontSize: '1.1rem'
+                          }}
+                        >
+                          Go Back Home
+                        </a>
+                      </div>
                     } 
                   />
                 </Routes>

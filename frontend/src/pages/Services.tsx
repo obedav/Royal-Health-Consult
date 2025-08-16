@@ -33,138 +33,15 @@ import {
   FaPhone,
   FaWhatsapp,
   FaCalendarAlt,
-  FaArrowRight
+  FaArrowRight,
+  FaClipboardCheck,
+  FaBaby
 } from 'react-icons/fa'
-import { MdHealthAndSafety, MdElderlyWoman } from 'react-icons/md'
+import { MdHealthAndSafety, MdElderlyWoman, MdPsychology } from 'react-icons/md'
 import { useNavigate } from 'react-router-dom'
 
-// Shared service data (you can move this to a separate file later)
-export const healthcareServices = [
-  {
-    id: 'home-nursing',
-    name: 'Home Nursing Care',
-    description: 'Professional nursing care in the comfort of your home. Our qualified nurses provide personalized medical attention.',
-    shortDescription: 'Professional nursing care in the comfort of your home',
-    price: 15000,
-    duration: 240, // 4 hours
-    category: 'nursing',
-    icon: 'FaUserNurse',
-    iconComponent: FaUserNurse,
-    popular: true,
-    features: ['Medication administration', 'Vital signs monitoring', 'Wound care', 'Patient education'],
-    requirements: ['Valid ID', 'Medical history if available'],
-    availability: '24/7'
-  },
-  {
-    id: 'elderly-care',
-    name: 'Elderly Care',
-    description: 'Specialized care for elderly patients with chronic conditions, ensuring dignity and comfort.',
-    shortDescription: 'Specialized care for elderly patients with chronic conditions',
-    price: 20000,
-    duration: 480, // 8 hours
-    category: 'nursing',
-    icon: 'MdElderlyWoman',
-    iconComponent: MdElderlyWoman,
-    popular: true,
-    features: ['Daily living assistance', 'Medication management', 'Companionship', 'Health monitoring'],
-    requirements: ['Medical records', 'Emergency contact'],
-    availability: '24/7'
-  },
-  {
-    id: 'post-surgery',
-    name: 'Post-Surgery Care',
-    description: 'Recovery assistance and wound care after surgery to ensure optimal healing.',
-    shortDescription: 'Recovery assistance and wound care after surgery',
-    price: 25000,
-    duration: 180, // 3 hours
-    category: 'nursing',
-    icon: 'MdHealthAndSafety',
-    iconComponent: MdHealthAndSafety,
-    features: ['Wound care & dressing', 'Pain management', 'Mobility assistance', 'Recovery monitoring'],
-    requirements: ['Surgery discharge notes', 'Medication list'],
-    availability: 'On-demand'
-  },
-  {
-    id: 'chronic-care',
-    name: 'Chronic Disease Management',
-    description: 'Ongoing care for diabetes, hypertension, and other chronic conditions.',
-    shortDescription: 'Ongoing care for diabetes, hypertension, and other conditions',
-    price: 18000,
-    duration: 120, // 2 hours
-    category: 'monitoring',
-    icon: 'FaHeartbeat',
-    iconComponent: FaHeartbeat,
-    features: ['Blood pressure monitoring', 'Blood sugar checks', 'Medication compliance', 'Lifestyle counseling'],
-    requirements: ['Medical diagnosis', 'Current medications'],
-    availability: 'Weekly/Monthly'
-  },
-  {
-    id: 'wound-care',
-    name: 'Wound Care & Dressing',
-    description: 'Professional wound cleaning and dressing changes for optimal healing.',
-    shortDescription: 'Professional wound cleaning and dressing changes',
-    price: 8000,
-    duration: 60, // 1 hour
-    category: 'nursing',
-    icon: 'FaStethoscope',
-    iconComponent: FaStethoscope,
-    features: ['Sterile dressing changes', 'Wound assessment', 'Infection prevention', 'Healing progress monitoring'],
-    availability: 'Daily/As needed'
-  },
-  {
-    id: 'physiotherapy',
-    name: 'Physiotherapy',
-    description: 'Physical therapy and rehabilitation exercises for recovery and mobility.',
-    shortDescription: 'Physical therapy and rehabilitation exercises',
-    price: 12000,
-    duration: 90, // 1.5 hours
-    category: 'therapy',
-    icon: 'FaWheelchair',
-    iconComponent: FaWheelchair,
-    features: ['Exercise therapy', 'Mobility training', 'Pain relief', 'Strength building'],
-    availability: '2-3x per week'
-  },
-  {
-    id: 'medication-admin',
-    name: 'Medication Administration',
-    description: 'Safe administration of injections and IV medications by qualified nurses.',
-    shortDescription: 'Safe administration of injections and IV medications',
-    price: 5000,
-    duration: 30, // 30 minutes
-    category: 'nursing',
-    icon: 'FaSyringe',
-    iconComponent: FaSyringe,
-    features: ['Injectable medications', 'IV therapy', 'Dosage verification', 'Side effect monitoring'],
-    availability: 'As prescribed'
-  },
-  {
-    id: 'health-monitoring',
-    name: 'Health Monitoring',
-    description: 'Comprehensive vital signs monitoring and health assessment.',
-    shortDescription: 'Vital signs monitoring and health assessment',
-    price: 6000,
-    duration: 45, // 45 minutes
-    category: 'monitoring',
-    icon: 'FaHeartbeat',
-    iconComponent: FaHeartbeat,
-    features: ['Vital signs check', 'Health assessment', 'Report generation', 'Trend analysis'],
-    availability: 'Regular intervals'
-  },
-  {
-    id: 'emergency-care',
-    name: 'Emergency Home Care',
-    description: 'Urgent medical care for non-life threatening emergencies.',
-    shortDescription: 'Urgent medical care for non-life threatening emergencies',
-    price: 35000,
-    duration: 120, // 2 hours
-    category: 'emergency',
-    icon: 'FaAmbulance',
-    iconComponent: FaAmbulance,
-    features: ['Rapid response', 'Emergency assessment', 'Stabilization', 'Hospital coordination'],
-    requirements: ['Immediate availability needed'],
-    availability: '24/7 Emergency'
-  }
-]
+// Import assessment data from constants
+import { healthcareAssessments } from '../constants/assessments'
 
 const Services: React.FC = () => {
   const navigate = useNavigate()
@@ -188,9 +65,9 @@ const Services: React.FC = () => {
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      nursing: 'blue',
-      monitoring: 'green',
-      therapy: 'purple',
+      general: 'blue',
+      specialized: 'purple',
+      routine: 'green',
       emergency: 'red'
     }
     return colors[category as keyof typeof colors] || 'gray'
@@ -218,19 +95,41 @@ const Services: React.FC = () => {
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbItem isCurrentPage>
-              <BreadcrumbLink color="gray.600">Services</BreadcrumbLink>
+              <BreadcrumbLink color="gray.600">Health Assessments</BreadcrumbLink>
             </BreadcrumbItem>
           </Breadcrumb>
 
           {/* Header Section */}
           <VStack spacing={6} textAlign="center" maxW="800px" mx="auto">
             <Heading size="2xl" color="gray.800">
-              Professional Healthcare Services
+              Professional Health Assessments
             </Heading>
             <Text color="gray.600" fontSize="xl" lineHeight="1.6">
-              Comprehensive medical care delivered to your home by qualified healthcare professionals. 
-              Safe, reliable, and professional healthcare when you need it most.
+              Comprehensive health assessments delivered to your home by qualified healthcare professionals. 
+              Professional evaluations with detailed reports and personalized recommendations.
             </Text>
+            
+            {/* Assessment Value Highlight */}
+            <Box 
+              bg="primary.50" 
+              border="2px solid" 
+              borderColor="primary.200" 
+              borderRadius="xl" 
+              p={6} 
+              maxW="600px"
+            >
+              <VStack spacing={2}>
+                <Text fontSize="sm" color="primary.600" fontWeight="600">
+                  COMPREHENSIVE HEALTH ASSESSMENTS
+                </Text>
+                <Text fontSize="xl" fontWeight="bold" color="primary.500">
+                  Professional Evaluation • Detailed Report • Home Comfort
+                </Text>
+                <Text fontSize="sm" color="gray.600" textAlign="center">
+                  Fixed pricing for all assessment types • Transparent pricing shown at booking
+                </Text>
+              </VStack>
+            </Box>
             
             {/* Quick Action */}
             <Button
@@ -247,29 +146,29 @@ const Services: React.FC = () => {
                 boxShadow: 'lg'
               }}
             >
-              Book Any Service Now
+              Book Assessment Now
             </Button>
 
             {/* Stats */}
             <HStack spacing={8} pt={4}>
               <VStack spacing={1}>
                 <Text fontSize="2xl" fontWeight="bold" color="primary.500">500+</Text>
-                <Text fontSize="sm" color="gray.600">Happy Patients</Text>
+                <Text fontSize="sm" color="gray.600">Assessments Done</Text>
               </VStack>
               <VStack spacing={1}>
                 <Text fontSize="2xl" fontWeight="bold" color="primary.500">50+</Text>
-                <Text fontSize="sm" color="gray.600">Qualified Nurses</Text>
+                <Text fontSize="sm" color="gray.600">Health Professionals</Text>
               </VStack>
               <VStack spacing={1}>
                 <Text fontSize="2xl" fontWeight="bold" color="primary.500">24/7</Text>
-                <Text fontSize="sm" color="gray.600">Availability</Text>
+                <Text fontSize="sm" color="gray.600">Emergency Available</Text>
               </VStack>
             </HStack>
           </VStack>
 
-          {/* Services Grid */}
+          {/* Assessment Services Grid */}
           <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} spacing={8}>
-            {healthcareServices.map((service) => {
+            {healthcareAssessments.map((service) => {
               const IconComponent = service.iconComponent
 
               return (
@@ -329,7 +228,7 @@ const Services: React.FC = () => {
                           py={1}
                           borderRadius="full"
                         >
-                          {service.category}
+                          {service.category} Assessment
                         </Badge>
                       </Flex>
 
@@ -342,10 +241,10 @@ const Services: React.FC = () => {
                           {service.description}
                         </Text>
 
-                        {/* Features */}
+                        {/* Assessment Features */}
                         <VStack spacing={2} align="start" w="full">
                           <Text fontSize="sm" fontWeight="600" color="gray.700">
-                            What's Included:
+                            Assessment Includes:
                           </Text>
                           {service.features.slice(0, 3).map((feature, index) => (
                             <HStack key={index} spacing={2}>
@@ -355,7 +254,7 @@ const Services: React.FC = () => {
                           ))}
                           {service.features.length > 3 && (
                             <Text fontSize="xs" color="primary.500" fontWeight="500">
-                              +{service.features.length - 3} more features
+                              +{service.features.length - 3} more assessment components
                             </Text>
                           )}
                         </VStack>
@@ -363,37 +262,31 @@ const Services: React.FC = () => {
 
                       <Divider />
 
-                      {/* Pricing & Duration */}
-                      <HStack justify="space-between" w="full">
-                        <VStack spacing={1} align="start">
-                          <HStack spacing={1}>
-                            <Icon as={FaTag} color="primary.500" fontSize="sm" />
-                            <Text fontSize="xs" color="gray.500">Starting at</Text>
-                          </HStack>
-                          <Text fontWeight="bold" color="primary.500" fontSize="xl">
-                            {formatPrice(service.price)}
-                          </Text>
-                        </VStack>
-                        <VStack spacing={1} align="end">
-                          <HStack spacing={1}>
-                            <Icon as={FaClock} color="gray.500" fontSize="sm" />
-                            <Text fontSize="xs" color="gray.500">Duration</Text>
-                          </HStack>
-                          <Text color="gray.600" fontSize="sm" fontWeight="medium">
-                            {formatDuration(service.duration)}
-                          </Text>
-                        </VStack>
-                      </HStack>
+                      {/* Assessment Duration & Availability */}
+                      <VStack spacing={3} w="full">
+                        <HStack justify="space-between" w="full">
+                          <VStack spacing={1} align="start">
+                            <HStack spacing={1}>
+                              <Icon as={FaClock} color="gray.500" fontSize="sm" />
+                              <Text fontSize="xs" color="gray.500">Duration</Text>
+                            </HStack>
+                            <Text color="gray.700" fontSize="sm" fontWeight="medium">
+                              {formatDuration(service.duration)}
+                            </Text>
+                          </VStack>
+                          <VStack spacing={1} align="end">
+                            <HStack spacing={1}>
+                              <Icon as={FaCalendarAlt} color="gray.500" fontSize="sm" />
+                              <Text fontSize="xs" color="gray.500">Availability</Text>
+                            </HStack>
+                            <Text color="gray.700" fontSize="xs" textAlign="right">
+                              {service.availability.length > 20 ? service.availability.substring(0, 20) + '...' : service.availability}
+                            </Text>
+                          </VStack>
+                        </HStack>
+                      </VStack>
 
-                      {/* Availability */}
-                      <HStack spacing={2} w="full">
-                        <Icon as={FaClock} color="green.500" fontSize="sm" />
-                        <Text fontSize="sm" color="gray.600">
-                          <Text as="span" fontWeight="600">Available:</Text> {service.availability}
-                        </Text>
-                      </HStack>
-
-                      {/* Book Button */}
+                      {/* Book Assessment Button */}
                       <Button
                         w="full"
                         colorScheme="primary"
@@ -405,7 +298,7 @@ const Services: React.FC = () => {
                           transform: 'translateY(-1px)'
                         }}
                       >
-                        Book This Service
+                        Book Assessment
                       </Button>
                     </VStack>
                   </CardBody>
@@ -424,11 +317,11 @@ const Services: React.FC = () => {
             <VStack spacing={6}>
               <VStack spacing={3}>
                 <Heading size="lg" color="gray.800">
-                  Need Help Choosing a Service?
+                  Need Help Choosing an Assessment?
                 </Heading>
                 <Text color="gray.600" maxW="600px">
-                  Our healthcare consultants are available 24/7 to help you select the right service 
-                  for your specific needs. Get personalized recommendations today.
+                  Our healthcare consultants are available 24/7 to help you select the right assessment 
+                  for your specific health needs. Get personalized recommendations today.
                 </Text>
               </VStack>
               <HStack spacing={4} flexWrap="wrap" justify="center">
@@ -455,9 +348,95 @@ const Services: React.FC = () => {
                   size="lg"
                   onClick={handleQuickBook}
                 >
-                  Quick Booking
+                  Quick Assessment Booking
                 </Button>
               </HStack>
+            </VStack>
+          </Box>
+
+          {/* Assessment Process */}
+          <Box
+            bg="white"
+            borderRadius="2xl"
+            p={8}
+            border="1px"
+            borderColor="gray.200"
+          >
+            <VStack spacing={6}>
+              <Heading size="lg" color="gray.800" textAlign="center">
+                How Our Health Assessments Work
+              </Heading>
+              <SimpleGrid columns={{ base: 1, md: 4 }} spacing={6}>
+                {[
+                  {
+                    step: '1',
+                    title: 'Book Online',
+                    description: 'Choose your assessment type and preferred time slot',
+                    icon: FaCalendarAlt,
+                    color: 'blue'
+                  },
+                  {
+                    step: '2',
+                    title: 'Professional Arrives',
+                    description: 'Qualified healthcare professional comes to your location',
+                    icon: FaUserNurse,
+                    color: 'green'
+                  },
+                  {
+                    step: '3',
+                    title: 'Comprehensive Assessment',
+                    description: 'Thorough health evaluation based on your selected assessment type',
+                    icon: FaStethoscope,
+                    color: 'purple'
+                  },
+                  {
+                    step: '4',
+                    title: 'Detailed Report',
+                    description: 'Receive comprehensive report with recommendations within 24 hours',
+                    icon: FaClipboardCheck,
+                    color: 'orange'
+                  }
+                ].map((item, index) => (
+                  <VStack key={index} spacing={4} textAlign="center">
+                    <Box
+                      w={16}
+                      h={16}
+                      bg={`${item.color}.50`}
+                      borderRadius="full"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      position="relative"
+                    >
+                      <Icon as={item.icon} color={`${item.color}.500`} fontSize="2xl" />
+                      <Badge
+                        position="absolute"
+                        top="-8px"
+                        right="-8px"
+                        colorScheme={item.color}
+                        borderRadius="full"
+                        w={8}
+                        h={8}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        fontSize="sm"
+                        fontWeight="bold"
+                      >
+                        {item.step}
+                      </Badge>
+                    </Box>
+                    <VStack spacing={2}>
+                      <Text fontWeight="600" color="gray.800">
+                        {item.title}
+                      </Text>
+                      <Text fontSize="sm" color="gray.600" textAlign="center">
+                        {item.description}
+                      </Text>
+                    </VStack>
+                  </VStack>
+                ))}
+              </SimpleGrid>
             </VStack>
           </Box>
 
@@ -477,7 +456,7 @@ const Services: React.FC = () => {
                 </Text>
                 <Text fontSize="sm" color="red.600" lineHeight="1.5">
                   For life-threatening emergencies, please call <strong>199 (Nigeria Emergency)</strong> or 
-                  go to the nearest hospital immediately. Our services are for non-emergency healthcare needs.
+                  go to the nearest hospital immediately. Our assessment services are for non-emergency health evaluations.
                 </Text>
               </VStack>
             </HStack>

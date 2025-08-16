@@ -143,23 +143,23 @@ const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
   const calculateTransportFee = (state: string): number => {
     // Transport fees based on Nigerian states
     const transportFees: Record<string, number> = {
-      'Lagos': 2000,
-      'Abuja': 3000,
-      'Kano': 2500,
-      'Rivers': 2500,
-      'Oyo': 2000,
-      'Kaduna': 2500,
-      'Ogun': 1500,
-      'Ondo': 2000,
-      'Osun': 2000,
-      'Delta': 2500,
-      'Anambra': 2500,
-      'Imo': 2500,
-      'Enugu': 2500,
-      'Edo': 2000,
-      'Plateau': 3000,
+      'lagos': 2000,
+      'abuja': 3000,
+      'kano': 2500,
+      'rivers': 2500,
+      'oyo': 2000,
+      'kaduna': 2500,
+      'ogun': 1500,
+      'ondo': 2000,
+      'osun': 2000,
+      'delta': 2500,
+      'anambra': 2500,
+      'imo': 2500,
+      'enugu': 2500,
+      'edo': 2000,
+      'plateau': 3000,
     }
-    return transportFees[state] || 3000 // Default for other states
+    return transportFees[state.toLowerCase()] || 3000 // Default for other states
   }
 
   const pricing = calculatePricing()
@@ -171,6 +171,27 @@ const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
       minimumFractionDigits: 0
     }).format(price)
   }
+
+  // Nigerian states for display
+  const nigerianStates = [
+    { value: 'lagos', label: 'Lagos' },
+    { value: 'abuja', label: 'Abuja (FCT)' },
+    { value: 'kano', label: 'Kano' },
+    { value: 'rivers', label: 'Rivers' },
+    { value: 'oyo', label: 'Oyo' },
+    { value: 'kaduna', label: 'Kaduna' },
+    { value: 'ogun', label: 'Ogun' },
+    { value: 'ondo', label: 'Ondo' },
+    { value: 'osun', label: 'Osun' },
+    { value: 'delta', label: 'Delta' },
+    { value: 'anambra', label: 'Anambra' },
+    { value: 'imo', label: 'Imo' },
+    { value: 'enugu', label: 'Enugu' },
+    { value: 'edo', label: 'Edo' },
+    { value: 'plateau', label: 'Plateau' },
+    { value: 'cross-river', label: 'Cross River' },
+    { value: 'akwa-ibom', label: 'Akwa Ibom' }
+  ]
 
   // Mock promo code validation
   const validatePromoCode = (code: string) => {
@@ -518,7 +539,7 @@ const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
                           <VStack spacing={0} align="start">
                             <Text>Cash Payment</Text>
                             <Text fontSize="xs" color="gray.500">
-                              Pay nurse directly
+                              Pay healthcare professional directly
                             </Text>
                           </VStack>
                         </HStack>
@@ -596,13 +617,13 @@ const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
                     </HStack>
                     
                     <HStack justify="space-between" w="full">
-                      <Text fontWeight="600">Nurse:</Text>
-                      <Text>{selectedSchedule.nurse.name}</Text>
+                      <Text fontWeight="600">Healthcare Professional:</Text>
+                      <Text color="blue.600">To be assigned</Text>
                     </HStack>
                     
                     <HStack justify="space-between" w="full">
                       <Text fontWeight="600">Location:</Text>
-                      <Text>{selectedSchedule.address.state}</Text>
+                      <Text>{nigerianStates.find(s => s.value === selectedSchedule.address.state)?.label}</Text>
                     </HStack>
                     
                     <HStack justify="space-between" w="full">
@@ -692,7 +713,7 @@ const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
               py={6}
             >
               {selectedPaymentMethod === 'cash' 
-                ? `Confirm Appointment - Pay ${formatPrice(pricing.total)} to Nurse`
+                ? `Confirm Appointment - Pay ${formatPrice(pricing.total)} to Professional`
                 : `Pay ${formatPrice(pricing.total)} Now`
               }
             </Button>
@@ -712,13 +733,13 @@ const PaymentIntegration: React.FC<PaymentIntegrationProps> = ({
                   <Box>
                     <AlertTitle>Cash Payment Selected</AlertTitle>
                     <AlertDescription>
-                      You will pay {formatPrice(pricing.total)} directly to the nurse upon arrival.
+                      You will pay {formatPrice(pricing.total)} directly to the healthcare professional upon arrival.
                     </AlertDescription>
                   </Box>
                 </Alert>
                 
                 <Text fontSize="sm" color="gray.600" textAlign="center">
-                  Please ensure you have the exact amount ready. The nurse will provide a receipt 
+                  Please ensure you have the exact amount ready. The healthcare professional will provide a receipt 
                   upon payment completion.
                 </Text>
                 

@@ -17,8 +17,6 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
-  QRCode,
-  Image,
   Flex,
   SimpleGrid,
 } from '@chakra-ui/react'
@@ -36,13 +34,15 @@ import {
   FaDownload,
   FaHome,
   FaReceipt,
-  FaExclamationTriangle,
+  FaStethoscope,
+  FaClipboardList,
 } from 'react-icons/fa'
 import { useNavigate } from 'react-router-dom'
 import { BookingService } from '../../types/booking.types'
 import { ScheduleData } from './AppointmentScheduling'
 import { PatientInformation } from './PatientInformationForm'
 import { PaymentResult } from './PaymentIntegration'
+import { ASSESSMENT_PRICE } from '../../constants/assessments'
 
 interface BookingConfirmationProps {
   selectedService: BookingService
@@ -51,15 +51,23 @@ interface BookingConfirmationProps {
   paymentResult: PaymentResult
 }
 
-export interface BookingDetails {
+export interface AssessmentBookingDetails {
   bookingId: string
   confirmationCode: string
   status: 'confirmed' | 'pending' | 'cancelled'
   createdAt: string
   estimatedArrival: string
-  instructions: string[]
+  assessmentInstructions: string[]
   emergencyContact: string
   cancellationPolicy: string
+  assessmentDuration: number
+  followUpInfo: string
+  assignedProfessional: {
+    name: string
+    rating: number
+    experience: number
+    specialization: string
+  }
 }
 
 const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
@@ -72,21 +80,57 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const navigate = useNavigate()
 
-  // Generate booking details
-  const bookingDetails: BookingDetails = {
+  // Generate mock healthcare professional data since it's not in ScheduleData
+  const generateMockProfessional = () => {
+    const professionals = [
+      { name: 'Dr. Adaora Okonkwo', rating: 4.9, experience: 8, specialization: 'General Health Assessment' },
+      { name: 'Nurse Joy Abiola', rating: 4.8, experience: 6, specialization: 'Preventive Care' },
+      { name: 'Dr. Emeka Nwosu', rating: 4.9, experience: 12, specialization: 'Chronic Care Management' },
+      { name: 'Nurse Sarah Ibrahim', rating: 4.7, experience: 5, specialization: 'Home Healthcare' },
+      { name: 'Dr. Folake Adebayo', rating: 4.8, experience: 10, specialization: 'Family Medicine' },
+    ]
+    
+    // Use a deterministic selection based on date and service to ensure consistency
+    const index = (new Date(selectedSchedule.date).getDay() + selectedService.name.length) % professionals.length
+    return professionals[index]
+  }
+
+  const mockProfessional = generateMockProfessional()
+
+  // Generate assessment booking details
+  const assessmentDetails: AssessmentBookingDetails = {
     bookingId: `RHC-${Date.now().toString().slice(-6)}`,
-    confirmationCode: `${selectedSchedule.nurse.name.split(' ')[0].toUpperCase()}${Date.now().toString().slice(-4)}`,
+    confirmationCode: `ASS${mockProfessional.name.split(' ')[1].slice(0, 3).toUpperCase()}${Date.now().toString().slice(-4)}`,
     status: paymentResult.method === 'cash' ? 'pending' : 'confirmed',
     createdAt: new Date().toISOString(),
     estimatedArrival: calculateEstimatedArrival(),
-    instructions: generatePreparationInstructions(),
+    assessmentInstructions: generateAssessmentPreparationInstructions(),
     emergencyContact: '+234 901 234 5678',
-    cancellationPolicy: 'Free cancellation up to 4 hours before appointment'
+    cancellationPolicy: 'Free cancellation up to 4 hours before assessment appointment',
+    assessmentDuration: selectedService.duration,
+    followUpInfo: 'Assessment report will be provided within 24 hours after completion',
+    assignedProfessional: mockProfessional
   }
 
   function calculateEstimatedArrival(): string {
-    const appointmentTime = new Date(`${selectedSchedule.date}T${selectedSchedule.timeSlot.time}`)
-    const arrivalTime = new Date(appointmentTime.getTime() - 15 * 60000) // 15 minutes before
+    // Parse the time from the time slot (e.g., "8:00 AM" -> Date object)
+    const timeString = selectedSchedule.timeSlot.time
+    const appointmentDate = new Date(selectedSchedule.date)
+    
+    // Simple time parsing - you might want to use a more robust solution
+    const timeParts = timeString.match(/(\d+):(\d+)\s*(AM|PM)/i)
+    if (timeParts) {
+      let hours = parseInt(timeParts[1])
+      const minutes = parseInt(timeParts[2])
+      const period = timeParts[3].toUpperCase()
+      
+      if (period === 'PM' && hours !== 12) hours += 12
+      if (period === 'AM' && hours === 12) hours = 0
+      
+      appointmentDate.setHours(hours, minutes, 0, 0)
+    }
+    
+    const arrivalTime = new Date(appointmentDate.getTime() - 15 * 60000) // 15 minutes before
     return arrivalTime.toLocaleTimeString('en-NG', { 
       hour: '2-digit', 
       minute: '2-digit',
@@ -94,43 +138,68 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     })
   }
 
-  function generatePreparationInstructions(): string[] {
+  function generateAssessmentPreparationInstructions(): string[] {
     const baseInstructions = [
-      'Ensure patient is available at the scheduled time',
-      'Have a clear path to the treatment area',
-      'Prepare a comfortable, well-lit space for the nurse'
+      'Ensure patient is available and well-rested for the assessment',
+      'Have a quiet, comfortable space prepared for the evaluation',
+      'Prepare good lighting for medical examination',
+      'Have all medical documents and records easily accessible'
     ]
 
     const serviceSpecificInstructions: Record<string, string[]> = {
-      'home-nursing': [
+      'general-health-assessment': [
         'Have current medications list ready',
-        'Prepare comfortable seating area',
-        'Ensure good lighting for medical procedures'
+        'Wear comfortable, loose-fitting clothing',
+        'Prepare any previous medical test results',
+        'List any health concerns or symptoms to discuss'
       ],
-      'elderly-care': [
-        'Have medical history documents available',
-        'Prepare comfortable clothing for patient',
-        'Ensure wheelchair accessibility if needed'
+      'elderly-care-assessment': [
+        'Have complete medical history documents available',
+        'Prepare comfortable seating with back support',
+        'Ensure wheelchair accessibility if needed',
+        'Have family member present for support if desired'
       ],
-      'post-surgery': [
-        'Have surgery discharge notes ready',
-        'Prepare sterile environment',
-        'Keep pain medication accessible'
+      'chronic-condition-assessment': [
+        'Have recent blood work and test results ready',
+        'Prepare detailed symptom diary or health tracking records',
+        'List all current medications with dosages',
+        'Note any recent changes in health status'
       ],
-      'wound-care': [
-        'Clean the wound area gently',
-        'Remove any old dressing if advised',
-        'Have a clean towel available'
+      'post-surgery-assessment': [
+        'Have surgery discharge notes and instructions ready',
+        'Prepare the surgical site for examination (clean, accessible)',
+        'List any concerns about healing or recovery',
+        'Have pain medication information available'
       ],
-      'physiotherapy': [
-        'Wear comfortable, loose clothing',
-        'Prepare an open space for exercises',
-        'Have water available for hydration'
+      'mental-health-screening': [
+        'Ensure a private, quiet environment for discussion',
+        'Prepare to discuss current stress levels and concerns',
+        'Have list of any mood-related medications ready',
+        'Consider having a trusted person nearby for support'
       ],
-      'emergency-care': [
-        'Stay calm and follow nurse instructions',
+      'maternal-health-assessment': [
+        'Have pregnancy records and antenatal care card ready',
+        'Wear comfortable, easily adjustable clothing',
+        'Prepare any ultrasound results or medical records',
+        'Have prenatal vitamin information available'
+      ],
+      'pediatric-assessment': [
+        'Have child\'s vaccination records and growth chart ready',
+        'Prepare favorite toys or comfort items for the child',
+        'Ensure child is well-fed and comfortable before assessment',
+        'Have both parents present if possible'
+      ],
+      'emergency-assessment': [
+        'Stay calm and follow healthcare professional instructions',
         'Have emergency contacts readily available',
-        'Clear path for potential ambulance access'
+        'Prepare clear description of symptoms and timeline',
+        'Keep emergency medications easily accessible'
+      ],
+      'routine-checkup': [
+        'Fast for 8-12 hours if blood work might be needed',
+        'Prepare list of any health concerns or questions',
+        'Have insurance information and ID ready',
+        'Bring any vitamins or supplements currently taking'
       ]
     }
 
@@ -153,45 +222,57 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   }
 
   const handleDownloadReceipt = () => {
-    // In a real app, this would generate and download a PDF
+    // Generate assessment receipt for download
     const receiptData = {
-      bookingId: bookingDetails.bookingId,
-      service: selectedService.name,
+      bookingId: assessmentDetails.bookingId,
+      assessmentType: selectedService.name,
       date: selectedSchedule.date,
       time: selectedSchedule.timeSlot.time,
-      amount: paymentResult.amount,
-      patient: `${patientInfo.firstName} ${patientInfo.lastName}`
+      assessmentFee: ASSESSMENT_PRICE,
+      patient: `${patientInfo.firstName} ${patientInfo.lastName}`,
+      healthcareProfessional: assessmentDetails.assignedProfessional.name
     }
     
-    // Create a simple text receipt for download
     const receiptText = `
-ROYAL HEALTH CONSULT - RECEIPT
-==============================
-Booking ID: ${bookingDetails.bookingId}
-Confirmation Code: ${bookingDetails.confirmationCode}
+ROYAL HEALTH CONSULT - ASSESSMENT RECEIPT
+=========================================
+Booking ID: ${assessmentDetails.bookingId}
+Confirmation Code: ${assessmentDetails.confirmationCode}
 
-Service: ${selectedService.name}
+ASSESSMENT DETAILS:
+Assessment Type: ${selectedService.name}
 Date: ${new Date(selectedSchedule.date).toLocaleDateString('en-NG')}
 Time: ${selectedSchedule.timeSlot.time}
+Duration: ${selectedService.duration} minutes
 Patient: ${patientInfo.firstName} ${patientInfo.lastName}
-Nurse: ${selectedSchedule.nurse.name}
+Healthcare Professional: ${assessmentDetails.assignedProfessional.name}
 
-Amount Paid: ${formatPrice(paymentResult.amount)}
+PAYMENT INFORMATION:
+Assessment Fee: ${formatPrice(ASSESSMENT_PRICE)}
 Payment Method: ${paymentResult.method.toUpperCase()}
 Transaction ID: ${paymentResult.transactionId}
+Payment Status: ${paymentResult.status.toUpperCase()}
 
+LOCATION:
 Address: ${selectedSchedule.address.street}, ${selectedSchedule.address.state}
-Phone: ${patientInfo.phone}
+Contact: ${patientInfo.phone}
+
+IMPORTANT NOTES:
+- ${assessmentDetails.cancellationPolicy}
+- Assessment report provided within 24 hours
+- Follow-up recommendations will be included
+- Emergency contact: ${assessmentDetails.emergencyContact}
 
 Thank you for choosing Royal Health Consult!
 For support: +234 901 234 5678
+Email: support@royalhealthconsult.ng
     `.trim()
 
     const blob = new Blob([receiptText], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `RHC-Receipt-${bookingDetails.bookingId}.txt`
+    a.download = `RHC-Assessment-Receipt-${assessmentDetails.bookingId}.txt`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -204,7 +285,7 @@ For support: +234 901 234 5678
     navigate('/dashboard')
   }
 
-  const handleReschedule = () => {
+  const handleBookAnother = () => {
     navigate('/booking')
   }
 
@@ -227,12 +308,12 @@ For support: +234 901 234 5678
           
           <VStack spacing={2}>
             <Heading size="xl" color="gray.800">
-              {paymentResult.method === 'cash' ? 'Appointment Scheduled!' : 'Booking Confirmed!'}
+              {paymentResult.method === 'cash' ? 'Assessment Scheduled!' : 'Assessment Confirmed!'}
             </Heading>
             <Text color="gray.600" fontSize="lg">
               {paymentResult.method === 'cash' 
-                ? 'Your appointment is scheduled. Payment will be collected upon service delivery.'
-                : 'Your payment has been processed and appointment is confirmed.'
+                ? 'Your health assessment is scheduled. Payment will be collected after the assessment.'
+                : 'Your payment has been processed and assessment appointment is confirmed.'
               }
             </Text>
           </VStack>
@@ -242,10 +323,10 @@ For support: +234 901 234 5678
             <CardBody p={6} textAlign="center">
               <VStack spacing={2}>
                 <Text fontSize="sm" color="primary.600" fontWeight="600">
-                  CONFIRMATION CODE
+                  ASSESSMENT CONFIRMATION CODE
                 </Text>
                 <Text fontSize="2xl" fontWeight="bold" color="primary.700" letterSpacing="wider">
-                  {bookingDetails.confirmationCode}
+                  {assessmentDetails.confirmationCode}
                 </Text>
                 <Text fontSize="xs" color="gray.600">
                   Please save this code for your records
@@ -256,14 +337,30 @@ For support: +234 901 234 5678
         </VStack>
 
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={8}>
-          {/* Appointment Details */}
+          {/* Assessment Details */}
           <VStack spacing={6} align="stretch">
             <Card bg={cardBg} borderColor={borderColor}>
               <CardBody p={6}>
                 <VStack spacing={6} align="start">
-                  <Heading size="md">Appointment Details</Heading>
+                  <HStack spacing={2}>
+                    <Icon as={FaStethoscope} color="primary.500" />
+                    <Heading size="md">Assessment Details</Heading>
+                  </HStack>
                   
                   <VStack spacing={4} w="full">
+                    <HStack spacing={4} w="full" align="start">
+                      <Icon as={FaClipboardList} color="primary.500" fontSize="lg" mt={1} />
+                      <VStack spacing={1} align="start" flex={1}>
+                        <Text fontWeight="600">Assessment Type</Text>
+                        <Text color="gray.600">{selectedService.name}</Text>
+                        <Text fontSize="sm" color="gray.500">
+                          {selectedService.description}
+                        </Text>
+                      </VStack>
+                    </HStack>
+
+                    <Divider />
+
                     <HStack spacing={4} w="full" align="start">
                       <Icon as={FaCalendarAlt} color="primary.500" fontSize="lg" mt={1} />
                       <VStack spacing={1} align="start" flex={1}>
@@ -277,7 +374,7 @@ For support: +234 901 234 5678
                           })}
                         </Text>
                         <Text color="gray.600">
-                          {selectedSchedule.timeSlot.time} • {selectedService.duration / 60}h session
+                          {selectedSchedule.timeSlot.time} • {assessmentDetails.assessmentDuration} minute assessment
                         </Text>
                       </VStack>
                     </HStack>
@@ -288,15 +385,21 @@ For support: +234 901 234 5678
                       <Icon as={FaUserNurse} color="blue.500" fontSize="lg" mt={1} />
                       <VStack spacing={1} align="start" flex={1}>
                         <Text fontWeight="600">Healthcare Professional</Text>
-                        <Text color="gray.600">{selectedSchedule.nurse.name}</Text>
+                        <Text color="gray.600">{assessmentDetails.assignedProfessional.name}</Text>
                         <HStack spacing={2}>
                           <Badge colorScheme="green" size="sm">
-                            ⭐ {selectedSchedule.nurse.rating}
+                            ⭐ {assessmentDetails.assignedProfessional.rating}
                           </Badge>
                           <Badge colorScheme="blue" size="sm">
-                            {selectedSchedule.nurse.experience}y exp.
+                            {assessmentDetails.assignedProfessional.experience}y exp.
+                          </Badge>
+                          <Badge colorScheme="purple" size="sm">
+                            Verified
                           </Badge>
                         </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          {assessmentDetails.assignedProfessional.specialization}
+                        </Text>
                       </VStack>
                     </HStack>
 
@@ -305,7 +408,7 @@ For support: +234 901 234 5678
                     <HStack spacing={4} w="full" align="start">
                       <Icon as={FaMapMarkerAlt} color="red.500" fontSize="lg" mt={1} />
                       <VStack spacing={1} align="start" flex={1}>
-                        <Text fontWeight="600">Service Location</Text>
+                        <Text fontWeight="600">Assessment Location</Text>
                         <Text color="gray.600">
                           {selectedSchedule.address.street}
                         </Text>
@@ -327,7 +430,10 @@ For support: +234 901 234 5678
                       <VStack spacing={1} align="start" flex={1}>
                         <Text fontWeight="600">Estimated Arrival</Text>
                         <Text color="gray.600">
-                          {bookingDetails.estimatedArrival} (15 minutes before appointment)
+                          {assessmentDetails.estimatedArrival} (15 minutes before assessment)
+                        </Text>
+                        <Text fontSize="sm" color="gray.500">
+                          Healthcare professional will call 30 minutes before arrival
                         </Text>
                       </VStack>
                     </HStack>
@@ -347,13 +453,13 @@ For support: +234 901 234 5678
                   
                   <VStack spacing={2} w="full">
                     <HStack justify="space-between" w="full">
-                      <Text>Service</Text>
+                      <Text>Assessment Type</Text>
                       <Text>{selectedService.name}</Text>
                     </HStack>
                     
                     <HStack justify="space-between" w="full">
-                      <Text>Amount</Text>
-                      <Text fontWeight="600">{formatPrice(paymentResult.amount)}</Text>
+                      <Text>Assessment Fee</Text>
+                      <Text fontWeight="600">{formatPrice(ASSESSMENT_PRICE)}</Text>
                     </HStack>
                     
                     <HStack justify="space-between" w="full">
@@ -376,9 +482,19 @@ For support: +234 901 234 5678
                         {paymentResult.status.toUpperCase()}
                       </Badge>
                     </HStack>
-                  </VStack>
 
-                  <Divider />
+                    <Divider />
+
+                    <Alert status="info" size="sm">
+                      <AlertIcon />
+                      <Box fontSize="sm">
+                        <AlertTitle>Fixed Assessment Fee!</AlertTitle>
+                        <AlertDescription>
+                          All health assessments are priced at {formatPrice(ASSESSMENT_PRICE)} regardless of type or duration.
+                        </AlertDescription>
+                      </Box>
+                    </Alert>
+                  </VStack>
 
                   <HStack spacing={2} w="full">
                     <Button
@@ -411,10 +527,10 @@ For support: +234 901 234 5678
             <Card bg={cardBg} borderColor={borderColor}>
               <CardBody p={6}>
                 <VStack spacing={4} align="start">
-                  <Heading size="md">Preparation Instructions</Heading>
+                  <Heading size="md">Assessment Preparation</Heading>
                   
                   <VStack spacing={2} align="start" w="full">
-                    {bookingDetails.instructions.map((instruction, index) => (
+                    {assessmentDetails.assessmentInstructions.map((instruction, index) => (
                       <HStack key={index} spacing={3} align="start">
                         <Box
                           w={2}
@@ -445,7 +561,7 @@ For support: +234 901 234 5678
                       <Icon as={FaPhone} color="blue.500" />
                       <VStack spacing={0} align="start" flex={1}>
                         <Text fontWeight="600" fontSize="sm">Emergency Hotline</Text>
-                        <Text fontSize="sm" color="gray.600">{bookingDetails.emergencyContact}</Text>
+                        <Text fontSize="sm" color="gray.600">{assessmentDetails.emergencyContact}</Text>
                       </VStack>
                     </HStack>
                     
@@ -469,6 +585,23 @@ For support: +234 901 234 5678
               </CardBody>
             </Card>
 
+            {/* Assessment Information */}
+            <Alert status="success">
+              <AlertIcon />
+              <Box>
+                <AlertTitle>What to Expect</AlertTitle>
+                <AlertDescription fontSize="sm">
+                  <VStack spacing={1} align="start" mt={2}>
+                    <Text>• Professional health assessment in your home</Text>
+                    <Text>• Comprehensive evaluation and health screening</Text>
+                    <Text>• Written assessment report within 24 hours</Text>
+                    <Text>• Personalized health recommendations</Text>
+                    <Text>• Follow-up care guidance if needed</Text>
+                  </VStack>
+                </AlertDescription>
+              </Box>
+            </Alert>
+
             {/* Important Notes */}
             <Alert status="info">
               <AlertIcon />
@@ -476,11 +609,12 @@ For support: +234 901 234 5678
                 <AlertTitle>Important Notes</AlertTitle>
                 <AlertDescription fontSize="sm">
                   <VStack spacing={1} align="start" mt={2}>
-                    <Text>• {bookingDetails.cancellationPolicy}</Text>
-                    <Text>• SMS reminders will be sent 24h and 2h before appointment</Text>
-                    <Text>• Nurse will call 30 minutes before arrival</Text>
+                    <Text>• {assessmentDetails.cancellationPolicy}</Text>
+                    <Text>• SMS reminders will be sent 24h and 2h before assessment</Text>
+                    <Text>• Healthcare professional will call 30 minutes before arrival</Text>
+                    <Text>• {assessmentDetails.followUpInfo}</Text>
                     {paymentResult.method === 'cash' && (
-                      <Text>• Please have exact amount ready for cash payment</Text>
+                      <Text>• Please have exact amount ready: {formatPrice(ASSESSMENT_PRICE)}</Text>
                     )}
                   </VStack>
                 </AlertDescription>
@@ -502,10 +636,10 @@ For support: +234 901 234 5678
               <HStack spacing={3} w="full">
                 <Button
                   variant="outline"
-                  onClick={handleReschedule}
+                  onClick={handleBookAnother}
                   flex={1}
                 >
-                  Book Another
+                  Book Another Assessment
                 </Button>
                 <Button
                   variant="outline"
@@ -525,8 +659,8 @@ For support: +234 901 234 5678
           <Box>
             <AlertTitle>Confirmation Sent!</AlertTitle>
             <AlertDescription>
-              We've sent appointment details to {patientInfo.email} and {patientInfo.phone}. 
-              {patientInfo.consentToSMSUpdates && ' You\'ll receive SMS reminders as your appointment approaches.'}
+              We've sent assessment appointment details to {patientInfo.email} and {patientInfo.phone}. 
+              {patientInfo.consentToSMSUpdates && ' You\'ll receive SMS reminders as your assessment appointment approaches.'}
             </AlertDescription>
           </Box>
         </Alert>

@@ -3,7 +3,6 @@ import {
   Box,
   Container,
   Grid,
-  GridItem,
   Heading,
   Text,
   SimpleGrid,
@@ -13,7 +12,6 @@ import {
   Button,
   Icon,
   Badge,
-  Avatar,
   Table,
   Thead,
   Tbody,
@@ -33,29 +31,32 @@ import {
   Center,
   Alert,
   AlertIcon,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  AlertTitle,
+  AlertDescription,
   Progress,
-  Divider,
   useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Input,
+  FormControl,
+  FormLabel,
 } from '@chakra-ui/react';
 import {
   FaUsers,
   FaUserMd,
   FaCalendarAlt,
   FaMoneyBillWave,
-  FaChartLine,
   FaUserPlus,
   FaFileExport,
   FaEye,
   FaEdit,
-  FaTrash,
-  FaCheck,
-  FaTimes,
-  FaClock,
+  FaSignInAlt,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 
 // Types
@@ -102,107 +103,182 @@ const AdminDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Login modal state
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [loginEmail, setLoginEmail] = useState('fresh.new@royalhealth.ng');
+  const [loginPassword, setLoginPassword] = useState('password123');
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // Theme
   const bg = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
   const toast = useToast();
 
   // API Base URL
   const API_BASE_URL = 'http://localhost:3001/api/v1';
 
-  // Get auth token
+  // Check if user is authenticated
+  const checkAuthentication = (): boolean => {
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    if (token) {
+      console.log('✅ Authentication token found');
+      setIsAuthenticated(true);
+      return true;
+    }
+    console.log('❌ No authentication token found');
+    setIsAuthenticated(false);
+    return false;
+  };
+
+  // Get auth headers
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     };
   };
 
+  // Login function
+  const handleLogin = async () => {
+    setLoginLoading(true);
+    try {
+      console.log('🔐 Attempting login...');
+      
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Login successful:', data);
+        
+        // Store the token
+        localStorage.setItem('token', data.accessToken || data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        setIsAuthenticated(true);
+        onClose();
+        
+        toast({
+          title: 'Login Successful',
+          description: 'Welcome back! Loading dashboard data...',
+          status: 'success',
+          duration: 3000,
+        });
+        
+        // Fetch data after successful login
+        fetchData();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+    } catch (err) {
+      console.error('❌ Login failed:', err);
+      toast({
+        title: 'Login Failed',
+        description: err instanceof Error ? err.message : 'Please check your credentials',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   // Fetch real data from APIs
   const fetchData = async () => {
+    if (!checkAuthentication()) {
+      setLoading(false);
+      setError('Please log in to access admin dashboard');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      console.log('🔄 Fetching admin dashboard data...');
+      console.log('🔄 Fetching real data from backend...');
 
       // Fetch booking statistics
-      const statsResponse = await fetch(`${API_BASE_URL}/bookings/stats`, {
-        headers: getAuthHeaders(),
-      });
+      try {
+        console.log('📊 Fetching booking stats...');
+        const statsResponse = await fetch(`${API_BASE_URL}/bookings/stats`, {
+          headers: getAuthHeaders(),
+        });
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        console.log('📊 Booking stats:', statsData);
-        setStats(statsData);
-      } else {
-        console.error('Failed to fetch stats:', statsResponse.status);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          console.log('✅ Real booking stats:', statsData);
+          setStats(statsData);
+        } else if (statsResponse.status === 401) {
+          throw new Error('Authentication expired');
+        } else {
+          console.warn('⚠️ Stats endpoint returned:', statsResponse.status);
+        }
+      } catch (err) {
+        console.error('❌ Failed to fetch stats:', err);
       }
 
       // Fetch all bookings
-      const bookingsResponse = await fetch(`${API_BASE_URL}/bookings/all`, {
-        headers: getAuthHeaders(),
-      });
+      try {
+        console.log('📅 Fetching all bookings...');
+        const bookingsResponse = await fetch(`${API_BASE_URL}/bookings/all`, {
+          headers: getAuthHeaders(),
+        });
 
-      if (bookingsResponse.ok) {
-        const bookingsData = await bookingsResponse.json();
-        console.log('📅 All bookings:', bookingsData);
-        setBookings(bookingsData);
-      } else {
-        console.error('Failed to fetch bookings:', bookingsResponse.status);
+        if (bookingsResponse.ok) {
+          const bookingsData = await bookingsResponse.json();
+          console.log('✅ Real bookings data:', bookingsData);
+          setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+        } else if (bookingsResponse.status === 401) {
+          throw new Error('Authentication expired');
+        } else {
+          console.warn('⚠️ Bookings endpoint returned:', bookingsResponse.status);
+        }
+      } catch (err) {
+        console.error('❌ Failed to fetch bookings:', err);
       }
 
-      // Try to fetch users (may not exist yet)
+      // Fetch users
       try {
+        console.log('👥 Fetching all users...');
         const usersResponse = await fetch(`${API_BASE_URL}/users`, {
           headers: getAuthHeaders(),
         });
 
         if (usersResponse.ok) {
           const usersData = await usersResponse.json();
-          console.log('👥 All users:', usersData);
-          setUsers(usersData);
+          console.log('✅ Real users data:', usersData);
+          setUsers(Array.isArray(usersData) ? usersData : []);
+        } else if (usersResponse.status === 401) {
+          throw new Error('Authentication expired');
+        } else {
+          console.warn('⚠️ Users endpoint returned:', usersResponse.status);
         }
       } catch (err) {
-        console.log('Users endpoint not available, using mock data');
-        // Use mock user data if endpoint doesn't exist
-        setUsers([
-          {
-            id: '1',
-            email: 'fresh.new@royalhealth.ng',
-            firstName: 'Fresh',
-            lastName: 'New',
-            role: 'admin',
-            status: 'active',
-            phone: '+2348123456789',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            email: 'patient@example.com',
-            firstName: 'Patient',
-            lastName: 'User',
-            role: 'client',
-            status: 'active',
-            phone: '+2348123456790',
-            createdAt: new Date().toISOString(),
-          },
-        ]);
+        console.error('❌ Failed to fetch users:', err);
       }
 
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data');
-      toast({
-        title: 'Error loading data',
-        description: 'Please check your connection and try again',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      console.error('❌ Error fetching dashboard data:', err);
+      if (err instanceof Error && err.message === 'Authentication expired') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
+        setIsAuthenticated(false);
+        setError('Session expired. Please log in again.');
+      } else {
+        setError('Failed to load dashboard data');
+      }
     } finally {
       setLoading(false);
     }
@@ -213,8 +289,8 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   // Calculate derived stats
-  const totalPatients = users.filter(user => user.role === 'client').length;
-  const totalNurses = users.filter(user => user.role === 'nurse').length;
+  const totalPatients = users.filter(user => user.role === 'client' || user.role === 'patient').length;
+  const totalNurses = users.filter(user => user.role === 'nurse' || user.role === 'healthcare_professional').length;
   const todayBookings = bookings.filter(booking => {
     const today = new Date().toISOString().split('T')[0];
     return booking.scheduledDate === today;
@@ -243,12 +319,79 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <Box bg={bg} minH="100vh">
+        <Container maxW="md" py={20}>
+          <VStack spacing={8} align="center">
+            <Icon as={FaExclamationTriangle} fontSize="6xl" color="orange.500" />
+            <VStack spacing={4} textAlign="center">
+              <Heading size="lg" color="gray.700">
+                Admin Access Required
+              </Heading>
+              <Text color="gray.600">
+                Please log in with admin credentials to access the dashboard
+              </Text>
+            </VStack>
+            
+            <Card bg={cardBg} p={6} w="full">
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Email</FormLabel>
+                  <Input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="admin@royalhealth.ng"
+                  />
+                </FormControl>
+                
+                <FormControl>
+                  <FormLabel>Password</FormLabel>
+                  <Input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter password"
+                  />
+                </FormControl>
+                
+                <Button
+                  colorScheme="purple"
+                  size="lg"
+                  leftIcon={<FaSignInAlt />}
+                  onClick={handleLogin}
+                  isLoading={loginLoading}
+                  loadingText="Logging in..."
+                  w="full"
+                >
+                  Login to Dashboard
+                </Button>
+              </VStack>
+            </Card>
+            
+            <Alert status="info" borderRadius="md">
+              <AlertIcon />
+              <Box>
+                <AlertTitle fontSize="sm">Demo Credentials</AlertTitle>
+                <AlertDescription fontSize="sm">
+                  Use the pre-filled credentials or create an admin account through your backend
+                </AlertDescription>
+              </Box>
+            </Alert>
+          </VStack>
+        </Container>
+      </Box>
+    );
+  }
+
   if (loading) {
     return (
       <Center h="100vh">
         <VStack spacing={4}>
           <Spinner size="xl" color="purple.500" thickness="4px" />
-          <Text>Loading admin dashboard...</Text>
+          <Text>Loading real dashboard data...</Text>
         </VStack>
       </Center>
     );
@@ -265,11 +408,14 @@ const AdminDashboard: React.FC = () => {
                 Admin Dashboard
               </Heading>
               <Text color="gray.600">
-                Welcome back, Fresh! Manage your healthcare platform operations
+                Real-time data from Royal Health Consult backend
               </Text>
             </VStack>
             
             <HStack spacing={4}>
+              <Badge colorScheme="green" px={3} py={1}>
+                Live Data
+              </Badge>
               <Button
                 leftIcon={<FaFileExport />}
                 colorScheme="purple"
@@ -283,26 +429,17 @@ const AdminDashboard: React.FC = () => {
               >
                 Export Report
               </Button>
-              <Button
-                leftIcon={<FaUserPlus />}
-                colorScheme="purple"
-                onClick={() => toast({
-                  title: 'Add Nurse',
-                  description: 'Feature coming soon',
-                  status: 'info',
-                  duration: 3000,
-                })}
-              >
-                Add Nurse
-              </Button>
             </HStack>
           </HStack>
 
           {/* Error Alert */}
           {error && (
-            <Alert status="error">
+            <Alert status="warning">
               <AlertIcon />
-              {error}
+              <Box>
+                <AlertTitle>Notice</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Box>
             </Alert>
           )}
 
@@ -320,9 +457,8 @@ const AdminDashboard: React.FC = () => {
                       <StatNumber fontSize="3xl" color="blue.600">
                         {totalPatients}
                       </StatNumber>
-                      <StatHelpText color="green.500" fontSize="sm">
-                        <StatArrow type="increase" />
-                        Real users in database
+                      <StatHelpText color="blue.500" fontSize="sm">
+                        Registered users
                       </StatHelpText>
                     </VStack>
                     <Icon as={FaUsers} fontSize="3xl" color="blue.500" />
@@ -338,13 +474,13 @@ const AdminDashboard: React.FC = () => {
                   <HStack justify="space-between">
                     <VStack align="start" spacing={1}>
                       <StatLabel color="gray.600" fontSize="sm">
-                        Active Nurses
+                        Healthcare Professionals
                       </StatLabel>
                       <StatNumber fontSize="3xl" color="green.600">
                         {totalNurses}
                       </StatNumber>
-                      <StatHelpText color="gray.500" fontSize="sm">
-                        Professional healthcare staff
+                      <StatHelpText color="green.500" fontSize="sm">
+                        Active staff
                       </StatHelpText>
                     </VStack>
                     <Icon as={FaUserMd} fontSize="3xl" color="green.500" />
@@ -365,7 +501,7 @@ const AdminDashboard: React.FC = () => {
                       <StatNumber fontSize="3xl" color="orange.600">
                         {todayBookings}
                       </StatNumber>
-                      <StatHelpText color="gray.500" fontSize="sm">
+                      <StatHelpText color="orange.500" fontSize="sm">
                         Scheduled for today
                       </StatHelpText>
                     </VStack>
@@ -375,27 +511,20 @@ const AdminDashboard: React.FC = () => {
               </CardBody>
             </Card>
 
-            {/* Monthly Revenue */}
+            {/* Total Revenue */}
             <Card bg={cardBg} shadow="lg" borderRadius="xl">
               <CardBody>
                 <Stat>
                   <HStack justify="space-between">
                     <VStack align="start" spacing={1}>
                       <StatLabel color="gray.600" fontSize="sm">
-                        Monthly Revenue
+                        Total Revenue
                       </StatLabel>
                       <StatNumber fontSize="3xl" color="purple.600">
                         {formatCurrency(stats?.revenue || 0)}
                       </StatNumber>
-                      <StatHelpText color="gray.500" fontSize="sm">
-                        {stats?.revenue > 0 ? (
-                          <>
-                            <StatArrow type="increase" />
-                            From completed bookings
-                          </>
-                        ) : (
-                          'No completed bookings yet'
-                        )}
+                      <StatHelpText color="purple.500" fontSize="sm">
+                        From bookings
                       </StatHelpText>
                     </VStack>
                     <Icon as={FaMoneyBillWave} fontSize="3xl" color="purple.500" />
@@ -449,58 +578,64 @@ const AdminDashboard: React.FC = () => {
                       </HStack>
                     </>
                   ) : (
-                    <Text color="gray.500">No booking data available</Text>
+                    <Center py={8}>
+                      <Text color="gray.500">No booking statistics available</Text>
+                    </Center>
                   )}
                 </VStack>
               </CardBody>
             </Card>
 
-            {/* Performance Metrics */}
+            {/* Quick Actions */}
             <Card bg={cardBg} shadow="lg" borderRadius="xl">
               <CardHeader>
                 <Heading size="md" color="gray.700">
-                  Platform Performance
+                  Quick Actions
                 </Heading>
               </CardHeader>
               <CardBody>
-                <VStack spacing={6} align="stretch">
-                  <Box>
-                    <HStack justify="space-between" mb={2}>
-                      <Text fontSize="sm">User Growth</Text>
-                      <Text fontSize="sm" fontWeight="bold">
-                        {totalPatients + totalNurses} users
-                      </Text>
-                    </HStack>
-                    <Progress value={75} colorScheme="green" size="sm" />
-                  </Box>
-
-                  <Box>
-                    <HStack justify="space-between" mb={2}>
-                      <Text fontSize="sm">Booking Success Rate</Text>
-                      <Text fontSize="sm" fontWeight="bold">
-                        {stats?.total > 0 ? Math.round(((stats.completed || 0) / stats.total) * 100) : 0}%
-                      </Text>
-                    </HStack>
-                    <Progress 
-                      value={stats?.total > 0 ? ((stats.completed || 0) / stats.total) * 100 : 0} 
-                      colorScheme="purple" 
-                      size="sm" 
-                    />
-                  </Box>
-
-                  <Box>
-                    <HStack justify="space-between" mb={2}>
-                      <Text fontSize="sm">Revenue Target</Text>
-                      <Text fontSize="sm" fontWeight="bold">
-                        {formatCurrency(stats?.revenue || 0)} / ₦500K
-                      </Text>
-                    </HStack>
-                    <Progress 
-                      value={((stats?.revenue || 0) / 500000) * 100} 
-                      colorScheme="blue" 
-                      size="sm" 
-                    />
-                  </Box>
+                <VStack spacing={4} align="stretch">
+                  <Button
+                    leftIcon={<FaUserPlus />}
+                    colorScheme="purple"
+                    variant="outline"
+                    onClick={() => toast({
+                      title: 'Add Nurse',
+                      description: 'Redirect to add nurse form',
+                      status: 'info',
+                      duration: 3000,
+                    })}
+                  >
+                    Add Healthcare Professional
+                  </Button>
+                  
+                  <Button
+                    leftIcon={<FaCalendarAlt />}
+                    colorScheme="blue"
+                    variant="outline"
+                    onClick={() => toast({
+                      title: 'View Calendar',
+                      description: 'Opening appointment calendar',
+                      status: 'info',
+                      duration: 3000,
+                    })}
+                  >
+                    View Appointment Calendar
+                  </Button>
+                  
+                  <Button
+                    leftIcon={<FaFileExport />}
+                    colorScheme="green"
+                    variant="outline"
+                    onClick={() => toast({
+                      title: 'Generate Report',
+                      description: 'Creating monthly report',
+                      status: 'info',
+                      duration: 3000,
+                    })}
+                  >
+                    Generate Monthly Report
+                  </Button>
                 </VStack>
               </CardBody>
             </Card>
@@ -510,7 +645,7 @@ const AdminDashboard: React.FC = () => {
           <Card bg={cardBg} shadow="lg" borderRadius="xl">
             <CardHeader>
               <Heading size="md" color="gray.700">
-                Recent Bookings
+                Recent Bookings ({bookings.length} total)
               </Heading>
             </CardHeader>
             <CardBody>
@@ -528,7 +663,7 @@ const AdminDashboard: React.FC = () => {
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {bookings.slice(0, 5).map((booking) => (
+                      {bookings.slice(0, 10).map((booking) => (
                         <Tr key={booking.id}>
                           <Td>
                             <VStack align="start" spacing={1}>
@@ -590,7 +725,7 @@ const AdminDashboard: React.FC = () => {
                     <Icon as={FaCalendarAlt} fontSize="4xl" color="gray.400" />
                     <Text color="gray.500">No bookings found</Text>
                     <Text fontSize="sm" color="gray.400">
-                      Bookings will appear here once patients start booking appointments
+                      Bookings will appear here once patients start making appointments
                     </Text>
                   </VStack>
                 </Center>

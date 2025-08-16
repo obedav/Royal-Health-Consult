@@ -39,7 +39,7 @@ import { Booking } from './modules/bookings/entities/booking.entity'; // Add thi
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
         entities: [User, Booking], // Add Booking entity here
-        synchronize: configService.get('NODE_ENV') === 'development',
+        synchronize: configService.get('NODE_ENV') === 'development', // Only in development
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
       }),
@@ -49,7 +49,7 @@ import { Booking } from './modules/bookings/entities/booking.entity'; // Add thi
     // Feature modules
     AuthModule,
     UsersModule,
-    BookingsModule, // Add this line
+    BookingsModule, // Add BookingsModule here
   ],
   controllers: [AppController],
   providers: [

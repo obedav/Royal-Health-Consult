@@ -27,24 +27,22 @@ import {
   AlertTitle,
   AlertDescription,
   Badge,
-  Divider,
   useColorModeValue,
-  Switch,
   FormHelperText,
 } from '@chakra-ui/react'
 import {
   FaUser,
   FaHeart,
-  FaPills,
-  FaExclamationTriangle,
   FaPhone,
   FaIdCard,
   FaCheckCircle,
   FaInfoCircle,
+  FaStethoscope,
 } from 'react-icons/fa'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BookingService } from '../../types/booking.types'
 import { ScheduleData } from './AppointmentScheduling'
+import { ASSESSMENT_PRICE } from '../../constants/assessments'
 
 interface PatientFormProps {
   selectedService: BookingService
@@ -137,7 +135,6 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isFormValid, setIsFormValid] = useState(false)
 
   // Pre-populate if patient info exists
   useEffect(() => {
@@ -216,8 +213,8 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
     'No Insurance'
   ]
 
-  // Validation function
-  const validateForm = () => {
+  // Memoized validation to prevent infinite loops
+  const { isFormValid, validationErrors } = useMemo(() => {
     const newErrors: Record<string, string> = {}
 
     // Required fields validation
@@ -258,12 +255,15 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
       newErrors.consentToDataProcessing = 'Consent to data processing is required'
     }
 
-    setErrors(newErrors)
     const isValid = Object.keys(newErrors).length === 0
-    setIsFormValid(isValid)
     
-    return isValid
-  }
+    return { isFormValid: isValid, validationErrors: newErrors }
+  }, [formData])
+
+  // Update errors when validation changes
+  useEffect(() => {
+    setErrors(validationErrors)
+  }, [validationErrors])
 
   // Update form data
   const updateFormData = (field: string, value: any) => {
@@ -308,15 +308,18 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
 
   // Handle form submission
   const handleSubmit = () => {
-    if (validateForm()) {
+    if (isFormValid) {
       onPatientInfoSubmit(formData)
     }
   }
 
-  // Validate on form changes
-  useEffect(() => {
-    validateForm()
-  }, [formData])
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0
+    }).format(price)
+  }
 
   const age = calculateAge(formData.dateOfBirth)
 
@@ -332,12 +335,15 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
             Please provide your information to help us deliver the best care possible
           </Text>
           
-          {/* Appointment Summary */}
+          {/* Assessment Summary - FIXED VERSION */}
           <Card bg="primary.50" borderColor="primary.200" w="full" maxW="600px">
             <CardBody p={4}>
               <VStack spacing={2}>
                 <Text fontWeight="600" color="primary.700">
-                  {selectedService.name} with {selectedSchedule.nurse.name}
+                  {selectedService.name}
+                </Text>
+                <Text fontSize="sm" color="primary.600">
+                  Healthcare professional will be assigned based on your location
                 </Text>
                 <Text fontSize="sm" color="gray.600">
                   {new Date(selectedSchedule.date).toLocaleDateString('en-NG', {
@@ -350,6 +356,9 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
                 <Text fontSize="sm" color="gray.600">
                   {selectedSchedule.address.street}, {selectedSchedule.address.state}
                 </Text>
+                <Badge colorScheme="green" fontSize="sm" px={3} py={1}>
+                  {formatPrice(ASSESSMENT_PRICE)}
+                </Badge>
               </VStack>
             </CardBody>
           </Card>
@@ -536,18 +545,6 @@ const PatientInformationForm: React.FC<PatientFormProps> = ({
                       updateMedicalHistory('allergies', [...selectedCommonAllergies, ...customAllergies])
                     }}
                     placeholder="Other allergies not listed above"
-                    rows={2}
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Previous Surgeries (if any)</FormLabel>
-                  <Textarea
-                    value={formData.medicalHistory.previousSurgeries.join(', ')}
-                    onChange={(e) => updateMedicalHistory('previousSurgeries',
-                      e.target.value.split(',').map(surgery => surgery.trim()).filter(surgery => surgery)
-                    )}
-                    placeholder="List any previous surgeries and approximate dates"
                     rows={2}
                   />
                 </FormControl>

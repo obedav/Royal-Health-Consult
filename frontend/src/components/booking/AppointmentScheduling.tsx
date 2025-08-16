@@ -12,7 +12,6 @@ import {
   Button,
   Icon,
   Badge,
-  Avatar,
   Flex,
   useColorModeValue,
   Select,
@@ -24,19 +23,19 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
-  Divider,
 } from '@chakra-ui/react'
 import {
   FaCalendarAlt,
   FaClock,
   FaMapMarkerAlt,
-  FaUserNurse,
-  FaStar,
-  FaCheckCircle,
   FaInfoCircle,
+  FaStethoscope,
+  FaClipboardList,
+  FaUserMd,
 } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 import { BookingService } from '../../types/booking.types'
+import { ASSESSMENT_PRICE } from '../../constants/assessments'
 
 interface SchedulingProps {
   selectedService: BookingService
@@ -47,7 +46,6 @@ interface SchedulingProps {
 export interface ScheduleData {
   date: string
   timeSlot: TimeSlot
-  nurse: Nurse
   address: Address
   specialRequirements?: string
 }
@@ -57,18 +55,8 @@ interface TimeSlot {
   time: string
   duration: number
   available: boolean
-  price?: number // May vary based on time (emergency rates, etc.)
-}
-
-interface Nurse {
-  id: string
-  name: string
-  avatar?: string
-  rating: number
-  experience: number
-  specializations: string[]
-  availability: string[]
-  verified: boolean
+  price: number // Always ASSESSMENT_PRICE (5000)
+  isEmergency?: boolean
 }
 
 interface Address {
@@ -90,11 +78,10 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
   // State management
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null)
-  const [selectedNurse, setSelectedNurse] = useState<Nurse | null>(null)
   const [address, setAddress] = useState<Address>({
     street: '',
     city: '',
-    state: 'Lagos', // Default to Lagos
+    state: 'lagos', // Default to Lagos
     phoneNumber: '',
   })
   const [specialRequirements, setSpecialRequirements] = useState('')
@@ -108,8 +95,8 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
       const date = new Date(today)
       date.setDate(today.getDate() + i)
       
-      // Skip if it's too late today (after 6 PM)
-      if (i === 0 && today.getHours() >= 18) continue
+      // Skip if it's too late today (after 6 PM) unless emergency assessment
+      if (i === 0 && today.getHours() >= 18 && selectedService.category !== 'emergency') continue
       
       dates.push({
         value: date.toISOString().split('T')[0],
@@ -125,104 +112,83 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
     return dates
   }
 
-  // Mock time slots based on service type
-  const generateTimeSlots = (date: string): TimeSlot[] => {
-    const baseSlots = [
-      { time: '08:00', label: '8:00 AM' },
-      { time: '10:00', label: '10:00 AM' },
-      { time: '12:00', label: '12:00 PM' },
-      { time: '14:00', label: '2:00 PM' },
-      { time: '16:00', label: '4:00 PM' },
-      { time: '18:00', label: '6:00 PM' },
-    ]
+  // Generate assessment time slots based on service type - FIXED VERSION
+  const generateAssessmentTimeSlots = (date: string): TimeSlot[] => {
+    let baseSlots = []
 
-    // Emergency care available 24/7
     if (selectedService.category === 'emergency') {
-      const emergencySlots = []
+      // Emergency assessments available 24/7 - generate all slots without duplicates
       for (let i = 0; i < 24; i += 2) {
         const hour = i.toString().padStart(2, '0')
-        emergencySlots.push({
+        const label = i === 0 ? '12:00 AM' : 
+                     i < 12 ? `${i}:00 AM` :
+                     i === 12 ? '12:00 PM' :
+                     `${i - 12}:00 PM`
+        baseSlots.push({
           time: `${hour}:00`,
-          label: `${i === 0 ? 12 : i > 12 ? i - 12 : i}:00 ${i < 12 ? 'AM' : 'PM'}`
+          label: label
         })
       }
-      baseSlots.push(...emergencySlots)
+    } else {
+      // Regular assessment slots for non-emergency services
+      baseSlots = [
+        { time: '08:00', label: '8:00 AM' },
+        { time: '09:30', label: '9:30 AM' },
+        { time: '11:00', label: '11:00 AM' },
+        { time: '12:30', label: '12:30 PM' },
+        { time: '14:00', label: '2:00 PM' },
+        { time: '15:30', label: '3:30 PM' },
+        { time: '17:00', label: '5:00 PM' },
+      ]
     }
 
+    // Convert to TimeSlot objects with unique IDs
     return baseSlots.map((slot, index) => ({
-      id: `${date}-${slot.time}`,
+      id: `${date}-${slot.time}-${index}`, // Added index to ensure uniqueness
       time: slot.label,
       duration: selectedService.duration,
-      available: Math.random() > 0.3, // Mock availability
-      price: selectedService.category === 'emergency' && (parseInt(slot.time) < 8 || parseInt(slot.time) > 18) 
-        ? selectedService.price * 1.5 // Emergency rates
-        : selectedService.price
+      available: Math.random() > 0.2, // 80% availability for assessments
+      price: ASSESSMENT_PRICE, // Fixed ₦5,000 for all assessments
+      isEmergency: selectedService.category === 'emergency' && (parseInt(slot.time.split(':')[0]) < 8 || parseInt(slot.time.split(':')[0]) > 18)
     }))
   }
 
-  // Mock nurse data
-  const availableNurses: Nurse[] = [
-    {
-      id: '1',
-      name: 'Adunni Adebayo',
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150',
-      rating: 4.9,
-      experience: 8,
-      specializations: ['Home Nursing', 'Elderly Care', 'Post-Surgery Care'],
-      availability: ['Lagos', 'Abuja'],
-      verified: true
-    },
-    {
-      id: '2',
-      name: 'Kemi Okonkwo',
-      avatar: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=150',
-      rating: 4.8,
-      experience: 5,
-      specializations: ['Chronic Care', 'Medication Administration', 'Health Monitoring'],
-      availability: ['Lagos', 'Ogun'],
-      verified: true
-    },
-    {
-      id: '3',
-      name: 'Fatima Ibrahim',
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150',
-      rating: 4.7,
-      experience: 6,
-      specializations: ['Physiotherapy', 'Wound Care', 'Emergency Care'],
-      availability: ['Lagos', 'Abuja', 'Kano'],
-      verified: true
-    }
-  ]
-
   // Nigerian states
   const nigerianStates = [
-    'Lagos', 'Abuja', 'Kano', 'Rivers', 'Oyo', 'Kaduna', 'Ogun', 'Ondo', 'Osun',
-    'Delta', 'Anambra', 'Imo', 'Enugu', 'Edo', 'Plateau', 'Cross River', 'Akwa Ibom'
+    { value: 'lagos', label: 'Lagos' },
+    { value: 'abuja', label: 'Abuja (FCT)' },
+    { value: 'kano', label: 'Kano' },
+    { value: 'rivers', label: 'Rivers' },
+    { value: 'oyo', label: 'Oyo' },
+    { value: 'kaduna', label: 'Kaduna' },
+    { value: 'ogun', label: 'Ogun' },
+    { value: 'ondo', label: 'Ondo' },
+    { value: 'osun', label: 'Osun' },
+    { value: 'delta', label: 'Delta' },
+    { value: 'anambra', label: 'Anambra' },
+    { value: 'imo', label: 'Imo' },
+    { value: 'enugu', label: 'Enugu' },
+    { value: 'edo', label: 'Edo' },
+    { value: 'plateau', label: 'Plateau' },
+    { value: 'cross-river', label: 'Cross River' },
+    { value: 'akwa-ibom', label: 'Akwa Ibom' }
   ]
 
   const availableDates = generateAvailableDates()
-  const timeSlots = selectedDate ? generateTimeSlots(selectedDate) : []
-  const filteredNurses = availableNurses.filter(nurse => 
-    nurse.availability.includes(address.state) &&
-    nurse.specializations.some(spec => 
-      spec.toLowerCase().includes(selectedService.category) ||
-      selectedService.name.toLowerCase().includes(spec.toLowerCase())
-    )
-  )
+  const timeSlots = selectedDate ? generateAssessmentTimeSlots(selectedDate) : []
 
   // Update schedule when all required fields are filled
   useEffect(() => {
-    if (selectedDate && selectedTimeSlot && selectedNurse && address.street && address.phoneNumber) {
+    if (selectedDate && selectedTimeSlot && address.street && address.phoneNumber) {
       const scheduleData: ScheduleData = {
         date: selectedDate,
         timeSlot: selectedTimeSlot,
-        nurse: selectedNurse,
         address,
         specialRequirements: specialRequirements || undefined
       }
       onScheduleSelect(scheduleData)
     }
-  }, [selectedDate, selectedTimeSlot, selectedNurse, address.street, address.city, address.state, address.phoneNumber, address.landmark, specialRequirements]) // Only depend on the actual values, not the function
+  }, [selectedDate, selectedTimeSlot, address.street, address.city, address.state, address.phoneNumber, address.landmark, specialRequirements])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -232,7 +198,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
     }).format(price)
   }
 
-  const isFormComplete = selectedDate && selectedTimeSlot && selectedNurse && address.street && address.phoneNumber
+  const isFormComplete = selectedDate && selectedTimeSlot && address.street && address.phoneNumber
 
   return (
     <Container maxW="6xl" py={8}>
@@ -243,21 +209,50 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
             Schedule Your {selectedService.name}
           </Heading>
           <Text color="gray.600">
-            Choose your preferred date, time, and healthcare professional
+            Book a professional healthcare assessment in the comfort of your home
           </Text>
           
-          {/* Service Summary */}
-          <Box bg="primary.50" borderRadius="lg" p={4} w="full" maxW="500px">
+          {/* Assessment Service Summary */}
+          <Box bg="primary.50" borderRadius="lg" p={4} w="full" maxW="600px">
             <HStack spacing={4}>
-              <Box>
+              <Icon as={FaStethoscope} color="primary.500" fontSize="2xl" />
+              <VStack align="start" spacing={1}>
                 <Text fontWeight="600" color="primary.700">{selectedService.name}</Text>
+                <HStack spacing={4}>
+                  <Badge colorScheme="blue">{selectedService.duration} minutes</Badge>
+                  <Badge colorScheme="green" fontSize="md" px={3} py={1}>
+                    {formatPrice(ASSESSMENT_PRICE)}
+                  </Badge>
+                  {selectedService.category === 'emergency' && (
+                    <Badge colorScheme="red">24/7 Available</Badge>
+                  )}
+                </HStack>
                 <Text fontSize="sm" color="gray.600">
-                  {selectedService.duration / 60}h session • {formatPrice(selectedService.price)}
+                  Professional health assessment • A qualified healthcare professional will be assigned
                 </Text>
-              </Box>
+              </VStack>
             </HStack>
           </Box>
         </VStack>
+
+        {/* Professional Assignment Notice */}
+        <Card bg="blue.50" borderColor="blue.200" borderWidth="1px">
+          <CardBody p={4}>
+            <HStack spacing={3}>
+              <Icon as={FaUserMd} color="blue.500" fontSize="xl" />
+              <VStack align="start" spacing={1}>
+                <Text fontWeight="600" color="blue.700" fontSize="sm">
+                  Qualified Healthcare Professional Assignment
+                </Text>
+                <Text fontSize="sm" color="blue.600">
+                  A qualified healthcare professional will be automatically assigned to your assessment 
+                  based on your location, assessment type, and availability. All our professionals are 
+                  licensed, experienced, and specialized in health assessments.
+                </Text>
+              </VStack>
+            </HStack>
+          </CardBody>
+        </Card>
 
         {/* Step 1: Select Date */}
         <Card bg={cardBg} borderColor={borderColor}>
@@ -265,7 +260,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
             <VStack spacing={4} align="start">
               <HStack spacing={2}>
                 <Icon as={FaCalendarAlt} color="primary.500" />
-                <Heading size="md">1. Select Date</Heading>
+                <Heading size="md">1. Select Assessment Date</Heading>
               </HStack>
               
               <SimpleGrid columns={{ base: 2, md: 4, lg: 7 }} spacing={3} w="full">
@@ -296,7 +291,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
               
               {selectedService.category !== 'emergency' && (
                 <Text fontSize="xs" color="gray.500">
-                  * Weekend appointments available for emergency services only
+                  * Weekend assessments available for emergency services only
                 </Text>
               )}
             </VStack>
@@ -310,7 +305,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
               <VStack spacing={4} align="start">
                 <HStack spacing={2}>
                   <Icon as={FaClock} color="primary.500" />
-                  <Heading size="md">2. Select Time</Heading>
+                  <Heading size="md">2. Select Assessment Time</Heading>
                 </HStack>
                 
                 <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={3} w="full">
@@ -328,10 +323,10 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
                     >
                       <Text fontWeight="bold">{slot.time}</Text>
                       <Text fontSize="xs">
-                        {slot.available ? formatPrice(slot.price || selectedService.price) : 'Unavailable'}
+                        {slot.available ? 'Available' : 'Unavailable'}
                       </Text>
-                      {slot.price && slot.price > selectedService.price && (
-                        <Badge colorScheme="orange" fontSize="xs">Emergency Rate</Badge>
+                      {slot.isEmergency && (
+                        <Badge colorScheme="red" fontSize="xs">Emergency Hours</Badge>
                       )}
                     </Button>
                   ))}
@@ -340,88 +335,17 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
                 {timeSlots.length === 0 && (
                   <Alert status="info">
                     <AlertIcon />
-                    <AlertTitle>No slots available!</AlertTitle>
+                    <AlertTitle>No assessment slots available!</AlertTitle>
                     <AlertDescription>Please select a different date.</AlertDescription>
                   </Alert>
                 )}
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
 
-        {/* Step 3: Select Nurse */}
-        {selectedDate && selectedTimeSlot && (
-          <Card bg={cardBg} borderColor={borderColor}>
-            <CardBody p={6}>
-              <VStack spacing={4} align="start">
-                <HStack spacing={2}>
-                  <Icon as={FaUserNurse} color="primary.500" />
-                  <Heading size="md">3. Choose Your Healthcare Professional</Heading>
-                </HStack>
-                
-                <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4} w="full">
-                  {filteredNurses.map((nurse) => (
-                    <Card
-                      key={nurse.id}
-                      variant={selectedNurse?.id === nurse.id ? 'filled' : 'outline'}
-                      borderColor={selectedNurse?.id === nurse.id ? 'primary.500' : borderColor}
-                      borderWidth="2px"
-                      cursor="pointer"
-                      onClick={() => setSelectedNurse(nurse)}
-                      transition="all 0.2s"
-                      _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
-                    >
-                      <CardBody p={4}>
-                        <VStack spacing={3}>
-                          <HStack spacing={3} w="full">
-                            <Avatar src={nurse.avatar} name={nurse.name} size="md" />
-                            <VStack spacing={1} align="start" flex={1}>
-                              <HStack spacing={2}>
-                                <Text fontWeight="600">{nurse.name}</Text>
-                                {nurse.verified && (
-                                  <Icon as={FaCheckCircle} color="green.500" fontSize="sm" />
-                                )}
-                              </HStack>
-                              <HStack spacing={1}>
-                                <Icon as={FaStar} color="yellow.400" fontSize="sm" />
-                                <Text fontSize="sm">{nurse.rating}</Text>
-                                <Text fontSize="sm" color="gray.500">
-                                  ({nurse.experience} years exp.)
-                                </Text>
-                              </HStack>
-                            </VStack>
-                          </HStack>
-                          
-                          <VStack spacing={2} w="full" align="start">
-                            <Text fontSize="xs" color="gray.600" fontWeight="600">
-                              Specializations:
-                            </Text>
-                            <Flex wrap="wrap" gap={1}>
-                              {nurse.specializations.slice(0, 2).map((spec, index) => (
-                                <Badge key={index} colorScheme="blue" fontSize="xs">
-                                  {spec}
-                                </Badge>
-                              ))}
-                              {nurse.specializations.length > 2 && (
-                                <Badge colorScheme="gray" fontSize="xs">
-                                  +{nurse.specializations.length - 2} more
-                                </Badge>
-                              )}
-                            </Flex>
-                          </VStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </SimpleGrid>
-                
-                {filteredNurses.length === 0 && (
-                  <Alert status="warning">
+                {selectedService.category === 'emergency' && (
+                  <Alert status="info">
                     <AlertIcon />
-                    <AlertTitle>No nurses available!</AlertTitle>
+                    <AlertTitle>Emergency Assessment Available 24/7</AlertTitle>
                     <AlertDescription>
-                      No healthcare professionals available for {selectedService.name} in your area. 
-                      Please try a different date or contact support.
+                      Emergency health assessments can be scheduled at any time for urgent, non-life-threatening situations.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -430,14 +354,14 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
           </Card>
         )}
 
-        {/* Step 4: Address Details */}
-        {selectedNurse && (
+        {/* Step 3: Assessment Location Details */}
+        {selectedDate && selectedTimeSlot && (
           <Card bg={cardBg} borderColor={borderColor}>
             <CardBody p={6}>
               <VStack spacing={4} align="start">
                 <HStack spacing={2}>
                   <Icon as={FaMapMarkerAlt} color="primary.500" />
-                  <Heading size="md">4. Service Location</Heading>
+                  <Heading size="md">3. Assessment Location</Heading>
                 </HStack>
                 
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
@@ -446,7 +370,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
                     <Input
                       value={address.street}
                       onChange={(e) => setAddress(prev => ({ ...prev, street: e.target.value }))}
-                      placeholder="Enter your street address"
+                      placeholder="Enter your detailed street address"
                     />
                   </FormControl>
                   
@@ -456,6 +380,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
                       value={address.phoneNumber}
                       onChange={(e) => setAddress(prev => ({ ...prev, phoneNumber: e.target.value }))}
                       placeholder="+234 801 234 5678"
+                      type="tel"
                     />
                   </FormControl>
                   
@@ -466,7 +391,7 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
                       onChange={(e) => setAddress(prev => ({ ...prev, state: e.target.value }))}
                     >
                       {nigerianStates.map(state => (
-                        <option key={state} value={state}>{state}</option>
+                        <option key={state.value} value={state.value}>{state.label}</option>
                       ))}
                     </Select>
                   </FormControl>
@@ -494,42 +419,45 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
           </Card>
         )}
 
-        {/* Step 5: Special Requirements */}
-        {isFormComplete && (
+        {/* Step 4: Special Requirements for Assessment */}
+        {selectedDate && selectedTimeSlot && address.street && address.phoneNumber && (
           <Card bg={cardBg} borderColor={borderColor}>
             <CardBody p={6}>
               <VStack spacing={4} align="start">
                 <HStack spacing={2}>
                   <Icon as={FaInfoCircle} color="primary.500" />
-                  <Heading size="md">5. Special Requirements (Optional)</Heading>
+                  <Heading size="md">4. Special Requirements (Optional)</Heading>
                 </HStack>
                 
                 <FormControl w="full">
                   <FormLabel fontSize="sm">
-                    Any specific requirements or medical conditions we should know about?
+                    Any specific requirements for your health assessment?
                   </FormLabel>
                   <Textarea
                     value={specialRequirements}
                     onChange={(e) => setSpecialRequirements(e.target.value)}
-                    placeholder="e.g., Patient has mobility issues, specific medication allergies, preferred language, etc."
+                    placeholder="e.g., Patient has mobility issues, needs wheelchair access, specific health concerns to focus on, preferred language, etc."
                     rows={4}
                   />
+                  <Text fontSize="xs" color="gray.500" mt={2}>
+                    This helps our healthcare professional prepare for your assessment and provide better care.
+                  </Text>
                 </FormControl>
               </VStack>
             </CardBody>
           </Card>
         )}
 
-        {/* Summary */}
+        {/* Assessment Summary */}
         {isFormComplete && (
           <Alert status="success">
             <AlertIcon />
             <Box>
-              <AlertTitle>Appointment Details Confirmed!</AlertTitle>
+              <AlertTitle>Assessment Appointment Ready!</AlertTitle>
               <AlertDescription>
                 <VStack spacing={1} align="start" mt={2}>
                   <Text fontSize="sm">
-                    <strong>Service:</strong> {selectedService.name}
+                    <strong>Assessment:</strong> {selectedService.name}
                   </Text>
                   <Text fontSize="sm">
                     <strong>Date & Time:</strong> {new Date(selectedDate).toLocaleDateString('en-NG', { 
@@ -540,19 +468,69 @@ const AppointmentScheduling: React.FC<SchedulingProps> = ({
                     })} at {selectedTimeSlot.time}
                   </Text>
                   <Text fontSize="sm">
-                    <strong>Healthcare Professional:</strong> {selectedNurse.name}
+                    <strong>Duration:</strong> {selectedService.duration} minutes
                   </Text>
                   <Text fontSize="sm">
-                    <strong>Location:</strong> {address.street}, {address.city}, {address.state}
+                    <strong>Location:</strong> {address.street}, {address.city}, {nigerianStates.find(s => s.value === address.state)?.label}
                   </Text>
                   <Text fontSize="sm">
-                    <strong>Total Cost:</strong> {formatPrice(selectedTimeSlot.price || selectedService.price)}
+                    <strong>Healthcare Professional:</strong> Will be assigned based on your location and assessment type
+                  </Text>
+                  <Text fontSize="sm" color="green.600" fontWeight="600">
+                    <strong>Assessment Fee:</strong> {formatPrice(ASSESSMENT_PRICE)}
                   </Text>
                 </VStack>
               </AlertDescription>
             </Box>
           </Alert>
         )}
+
+        {/* Assessment Information Panel */}
+        <Card bg="blue.50" borderColor="blue.200" borderWidth="1px">
+          <CardBody p={6}>
+            <VStack spacing={4} align="start">
+              <HStack spacing={2}>
+                <Icon as={FaClipboardList} color="blue.500" />
+                <Heading size="md" color="blue.700">What to Expect During Your Assessment</Heading>
+              </HStack>
+              
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                <VStack align="start" spacing={2}>
+                  <Text fontSize="sm" fontWeight="600" color="blue.700">Assessment Includes:</Text>
+                  <VStack align="start" spacing={1}>
+                    <Text fontSize="sm" color="blue.600">• Comprehensive health evaluation</Text>
+                    <Text fontSize="sm" color="blue.600">• Vital signs monitoring</Text>
+                    <Text fontSize="sm" color="blue.600">• Medical history review</Text>
+                    <Text fontSize="sm" color="blue.600">• Health screening and examination</Text>
+                    <Text fontSize="sm" color="blue.600">• Written assessment report</Text>
+                    <Text fontSize="sm" color="blue.600">• Personalized health recommendations</Text>
+                  </VStack>
+                </VStack>
+                
+                <VStack align="start" spacing={2}>
+                  <Text fontSize="sm" fontWeight="600" color="blue.700">Please Prepare:</Text>
+                  <VStack align="start" spacing={1}>
+                    <Text fontSize="sm" color="blue.600">• List of current medications</Text>
+                    <Text fontSize="sm" color="blue.600">• Previous medical records (if available)</Text>
+                    <Text fontSize="sm" color="blue.600">• Insurance information or ID</Text>
+                    <Text fontSize="sm" color="blue.600">• Comfortable, loose clothing</Text>
+                    <Text fontSize="sm" color="blue.600">• Specific health concerns or questions</Text>
+                    <Text fontSize="sm" color="blue.600">• Quiet, well-lit space for assessment</Text>
+                  </VStack>
+                </VStack>
+              </SimpleGrid>
+              
+              <Alert status="info" size="sm">
+                <AlertIcon />
+                <Text fontSize="sm">
+                  <strong>Professional Assignment:</strong> Our qualified healthcare professionals are licensed, 
+                  experienced, and specialized in health assessments. You'll receive professional details 
+                  24 hours before your appointment.
+                </Text>
+              </Alert>
+            </VStack>
+          </CardBody>
+        </Card>
       </VStack>
     </Container>
   )

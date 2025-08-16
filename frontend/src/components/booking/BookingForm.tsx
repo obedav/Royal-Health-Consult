@@ -28,12 +28,12 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
-import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaPhone } from 'react-icons/fa'
+import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaPhone, FaStethoscope } from 'react-icons/fa'
 import { BookingService, BookingFormData, TimeSlot } from '../../types/booking.types'
-import { NIGERIAN_STATES, PHONE_REGEX } from '../../utils/constants'
+import { NIGERIAN_STATES, PHONE_REGEX, ASSESSMENT_PRICE } from '../../utils/constants'
 
-// Validation schema
-const bookingSchema = z.object({
+// Validation schema for assessment booking
+const assessmentBookingSchema = z.object({
   // Patient Information
   patientName: z.string().min(2, 'Name must be at least 2 characters'),
   patientAge: z.number().min(1, 'Age is required').max(120, 'Please enter a valid age'),
@@ -41,11 +41,11 @@ const bookingSchema = z.object({
   patientPhone: z.string().regex(PHONE_REGEX, 'Please enter a valid Nigerian phone number'),
   patientEmail: z.string().email('Please enter a valid email').optional().or(z.literal('')),
   
-  // Appointment Details
+  // Assessment Appointment Details
   date: z.string().min(1, 'Please select a date'),
   timeSlot: z.string().min(1, 'Please select a time'),
   
-  // Location
+  // Location for Home Assessment
   state: z.string().min(1, 'Please select your state'),
   city: z.string().min(1, 'Please select your city'),
   area: z.string().min(1, 'Please specify your area'),
@@ -57,20 +57,22 @@ const bookingSchema = z.object({
   emergencyContactPhone: z.string().regex(PHONE_REGEX, 'Please enter a valid phone number'),
   emergencyContactRelationship: z.string().min(1, 'Please specify relationship'),
   
-  // Medical Information
-  medicalCondition: z.string().optional(),
-  medications: z.string().optional(),
-  allergies: z.string().optional(),
+  // Medical Information for Assessment
+  currentMedicalConditions: z.string().optional(),
+  currentMedications: z.string().optional(),
+  knownAllergies: z.string().optional(),
+  previousHealthIssues: z.string().optional(),
   
-  // Preferences
+  // Assessment Preferences
   nurseGenderPreference: z.enum(['male', 'female', 'no-preference']),
   specialRequirements: z.string().optional(),
+  healthconcerns: z.string().optional(),
   
-  // Payment
+  // Payment for Assessment
   paymentMethod: z.enum(['card', 'bank-transfer', 'ussd', 'cash']),
 })
 
-type BookingFormSchema = z.infer<typeof bookingSchema>
+type AssessmentBookingSchema = z.infer<typeof assessmentBookingSchema>
 
 interface BookingFormProps {
   service: BookingService
@@ -91,8 +93,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
     watch,
     setValue,
     formState: { errors, isSubmitting }
-  } = useForm<BookingFormSchema>({
-    resolver: zodResolver(bookingSchema),
+  } = useForm<AssessmentBookingSchema>({
+    resolver: zodResolver(assessmentBookingSchema),
     defaultValues: {
       nurseGenderPreference: 'no-preference',
       paymentMethod: 'card'
@@ -102,19 +104,31 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
   const watchedState = watch('state')
   const watchedDate = watch('date')
 
-  // Generate available time slots (mock data - replace with API call)
-  const generateTimeSlots = (date: string): TimeSlot[] => {
+  // Generate available time slots for assessment
+  const generateAssessmentTimeSlots = (date: string): TimeSlot[] => {
     const slots: TimeSlot[] = []
-    const startHour = 8
-    const endHour = 20
     
-    for (let hour = startHour; hour < endHour; hour++) {
+    // Regular assessment hours: 8 AM to 6 PM
+    const startHour = 8
+    const endHour = 18
+    
+    // Emergency assessments available 24/7
+    const isEmergency = service.category === 'emergency'
+    const finalEndHour = isEmergency ? 24 : endHour
+    const finalStartHour = isEmergency ? 0 : startHour
+    
+    for (let hour = finalStartHour; hour < finalEndHour; hour++) {
       ['00', '30'].forEach(minute => {
         const time = `${hour.toString().padStart(2, '0')}:${minute}`
+        const displayTime = hour === 0 ? '12:00 AM' : 
+                           hour < 12 ? `${hour}:${minute} AM` :
+                           hour === 12 ? `12:${minute} PM` :
+                           `${hour - 12}:${minute} PM`
+        
         slots.push({
-          time,
-          available: Math.random() > 0.3, // 70% availability
-          price: service.price
+          time: displayTime,
+          available: Math.random() > 0.2, // 80% availability
+          price: ASSESSMENT_PRICE // Fixed ₦5,000 for all assessments
         })
       })
     }
@@ -122,23 +136,23 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
     return slots
   }
 
-  // Handle date change and load time slots
+  // Handle date change and load assessment time slots
   const handleDateChange = async (date: string) => {
     setSelectedDate(date)
     setValue('date', date)
     
     if (date) {
       setIsLoadingSlots(true)
-      // Simulate API call
+      // Simulate API call for available assessment slots
       setTimeout(() => {
-        const slots = generateTimeSlots(date)
+        const slots = generateAssessmentTimeSlots(date)
         setAvailableTimeSlots(slots)
         setIsLoadingSlots(false)
       }, 1000)
     }
   }
 
-  const onFormSubmit = (data: BookingFormSchema) => {
+  const onFormSubmit = (data: AssessmentBookingSchema) => {
     const formData: BookingFormData = {
       serviceId: service.id,
       date: data.date,
@@ -149,9 +163,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
       patientGender: data.patientGender,
       patientPhone: data.patientPhone,
       patientEmail: data.patientEmail || undefined,
-      medicalCondition: data.medicalCondition,
-      medications: data.medications,
-      allergies: data.allergies,
+      medicalCondition: data.currentMedicalConditions,
+      medications: data.currentMedications,
+      allergies: data.knownAllergies,
       emergencyContact: {
         name: data.emergencyContactName,
         phone: data.emergencyContactPhone,
@@ -167,7 +181,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
       specialRequirements: data.specialRequirements,
       nurseGenderPreference: data.nurseGenderPreference,
       paymentMethod: data.paymentMethod,
-      totalAmount: service.price
+      totalAmount: ASSESSMENT_PRICE // Fixed ₦5,000 assessment fee
     }
 
     onSubmit(formData)
@@ -179,41 +193,70 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
     return today.toISOString().split('T')[0]
   }
 
+  // Format assessment price
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0
+    }).format(price)
+  }
+
   return (
     <Container maxW="4xl" py={8}>
       <VStack spacing={8} align="stretch">
         {/* Header */}
         <VStack spacing={4} textAlign="center">
           <Heading size="lg" color="gray.800">
-            Book Your Appointment
+            Book Your {service.name}
           </Heading>
           <Text color="gray.600">
-            Please provide your details to schedule your {service.name} appointment
+            Schedule your professional healthcare assessment at home
           </Text>
         </VStack>
 
-        {/* Service Summary */}
+        {/* Assessment Service Summary */}
         <Card>
           <CardBody>
             <HStack justify="space-between" align="start">
               <VStack align="start" spacing={2}>
-                <Heading size="md" color="primary.500">
-                  {service.name}
-                </Heading>
+                <HStack spacing={2}>
+                  <Icon as={FaStethoscope} color="primary.500" />
+                  <Heading size="md" color="primary.500">
+                    {service.name}
+                  </Heading>
+                </HStack>
                 <Text color="gray.600" fontSize="sm">
                   {service.description}
                 </Text>
                 <HStack spacing={4}>
-                  <Badge colorScheme="blue">{service.duration / 60}h session</Badge>
-                  <Badge colorScheme="green">₦{service.price.toLocaleString()}</Badge>
+                  <Badge colorScheme="blue">{service.duration} minutes</Badge>
+                  <Badge colorScheme="green" fontSize="lg" px={3} py={1}>
+                    {formatPrice(ASSESSMENT_PRICE)}
+                  </Badge>
+                  {service.category === 'emergency' && (
+                    <Badge colorScheme="red">24/7 Available</Badge>
+                  )}
                 </HStack>
               </VStack>
               <Button size="sm" variant="ghost" onClick={onBack}>
-                Change Service
+                Change Assessment
               </Button>
             </HStack>
           </CardBody>
         </Card>
+
+        {/* Assessment Information Notice */}
+        <Alert status="info">
+          <AlertIcon />
+          <Box>
+            <AlertTitle>About Your Assessment</AlertTitle>
+            <AlertDescription>
+              Our qualified healthcare professionals will conduct a comprehensive assessment in the comfort of your home. 
+              All assessments are priced at {formatPrice(ASSESSMENT_PRICE)} regardless of the type or duration.
+            </AlertDescription>
+          </Box>
+        </Alert>
 
         {/* Booking Form */}
         <form onSubmit={handleSubmit(onFormSubmit)}>
@@ -277,14 +320,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
               </CardBody>
             </Card>
 
-            {/* Appointment Scheduling */}
+            {/* Assessment Scheduling */}
             <Card w="full">
               <CardBody>
                 <VStack spacing={6} align="stretch">
                   <Heading size="md" color="gray.800">
                     <HStack>
                       <Icon as={FaCalendarAlt} color="primary.500" />
-                      <Text>Schedule Appointment</Text>
+                      <Text>Schedule Assessment</Text>
                     </HStack>
                   </Heading>
 
@@ -303,7 +346,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                       <FormLabel>Preferred Time *</FormLabel>
                       <Select 
                         {...register('timeSlot')} 
-                        placeholder={isLoadingSlots ? "Loading times..." : "Select time"}
+                        placeholder={isLoadingSlots ? "Loading available times..." : "Select time"}
                         disabled={!selectedDate || isLoadingSlots}
                       >
                         {availableTimeSlots.map((slot) => (
@@ -323,9 +366,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                   {selectedDate && availableTimeSlots.length === 0 && !isLoadingSlots && (
                     <Alert status="warning">
                       <AlertIcon />
-                      <AlertTitle>No available slots!</AlertTitle>
+                      <AlertTitle>No available assessment slots!</AlertTitle>
                       <AlertDescription>
-                        Please select a different date or contact us for emergency appointments.
+                        Please select a different date or contact us for emergency assessments.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {service.category === 'emergency' && (
+                    <Alert status="info">
+                      <AlertIcon />
+                      <AlertTitle>Emergency Assessment Available 24/7</AlertTitle>
+                      <AlertDescription>
+                        Emergency health assessments are available around the clock for urgent, non-life-threatening situations.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -333,14 +386,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
               </CardBody>
             </Card>
 
-            {/* Location Information */}
+            {/* Location for Home Assessment */}
             <Card w="full">
               <CardBody>
                 <VStack spacing={6} align="stretch">
                   <Heading size="md" color="gray.800">
                     <HStack>
                       <Icon as={FaMapMarkerAlt} color="primary.500" />
-                      <Text>Location Details</Text>
+                      <Text>Assessment Location</Text>
                     </HStack>
                   </Heading>
 
@@ -380,7 +433,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                     <FormLabel>Street Address *</FormLabel>
                     <Textarea 
                       {...register('street')} 
-                      placeholder="Enter your detailed street address"
+                      placeholder="Enter your detailed street address for the home assessment"
                       rows={3}
                     />
                     <FormErrorMessage>{errors.street?.message}</FormErrorMessage>
@@ -435,23 +488,23 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
               </CardBody>
             </Card>
 
-            {/* Medical Information */}
+            {/* Medical Information for Assessment */}
             <Card w="full">
               <CardBody>
                 <VStack spacing={6} align="stretch">
                   <Heading size="md" color="gray.800">
-                    Medical Information
+                    Medical Information for Assessment
                   </Heading>
                   <Text fontSize="sm" color="gray.600">
-                    This information helps our nurses provide better care (optional but recommended)
+                    This information helps our healthcare professionals provide a more accurate assessment
                   </Text>
 
                   <SimpleGrid columns={{ base: 1 }} spacing={4}>
                     <FormControl>
-                      <FormLabel>Current Medical Condition</FormLabel>
+                      <FormLabel>Current Medical Conditions</FormLabel>
                       <Textarea 
-                        {...register('medicalCondition')} 
-                        placeholder="Describe any current medical conditions or concerns"
+                        {...register('currentMedicalConditions')} 
+                        placeholder="List any current medical conditions, chronic illnesses, or health concerns"
                         rows={3}
                       />
                     </FormControl>
@@ -459,18 +512,27 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                     <FormControl>
                       <FormLabel>Current Medications</FormLabel>
                       <Textarea 
-                        {...register('medications')} 
-                        placeholder="List any medications currently being taken"
+                        {...register('currentMedications')} 
+                        placeholder="List all medications, supplements, and vitamins currently being taken"
                         rows={2}
                       />
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>Allergies</FormLabel>
+                      <FormLabel>Known Allergies</FormLabel>
                       <Textarea 
-                        {...register('allergies')} 
-                        placeholder="List any known allergies (medications, foods, etc.)"
+                        {...register('knownAllergies')} 
+                        placeholder="List any known allergies (medications, foods, environmental, etc.)"
                         rows={2}
+                      />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Health Concerns for Assessment</FormLabel>
+                      <Textarea 
+                        {...register('healthconcerns')} 
+                        placeholder="Describe specific health concerns or symptoms you'd like assessed"
+                        rows={3}
                       />
                     </FormControl>
                   </SimpleGrid>
@@ -478,21 +540,21 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
               </CardBody>
             </Card>
 
-            {/* Preferences */}
+            {/* Assessment Preferences */}
             <Card w="full">
               <CardBody>
                 <VStack spacing={6} align="stretch">
                   <Heading size="md" color="gray.800">
-                    Service Preferences
+                    Assessment Preferences
                   </Heading>
 
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                     <FormControl isInvalid={!!errors.nurseGenderPreference}>
-                      <FormLabel>Nurse Gender Preference</FormLabel>
+                      <FormLabel>Healthcare Professional Gender Preference</FormLabel>
                       <Select {...register('nurseGenderPreference')}>
                         <option value="no-preference">No Preference</option>
-                        <option value="female">Female Nurse</option>
-                        <option value="male">Male Nurse</option>
+                        <option value="female">Female Professional</option>
+                        <option value="male">Male Professional</option>
                       </Select>
                       <FormErrorMessage>{errors.nurseGenderPreference?.message}</FormErrorMessage>
                     </FormControl>
@@ -503,7 +565,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                         <option value="card">Card Payment (Flutterwave)</option>
                         <option value="bank-transfer">Bank Transfer</option>
                         <option value="ussd">USSD Banking</option>
-                        <option value="cash">Cash Payment</option>
+                        <option value="cash">Cash Payment (Pay after assessment)</option>
                       </Select>
                       <FormErrorMessage>{errors.paymentMethod?.message}</FormErrorMessage>
                     </FormControl>
@@ -513,7 +575,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                     <FormLabel>Special Requirements</FormLabel>
                     <Textarea 
                       {...register('specialRequirements')} 
-                      placeholder="Any special requirements or instructions for the nurse"
+                      placeholder="Any special requirements, accessibility needs, or instructions for the healthcare professional"
                       rows={3}
                     />
                   </FormControl>
@@ -521,20 +583,23 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
               </CardBody>
             </Card>
 
-            {/* Total Amount */}
+            {/* Assessment Fee Summary */}
             <Card w="full" bg="primary.50" border="2px" borderColor="primary.200">
               <CardBody>
                 <HStack justify="space-between" align="center">
                   <VStack align="start" spacing={1}>
                     <Text fontWeight="bold" color="gray.800">
-                      Total Amount
+                      Assessment Fee
                     </Text>
                     <Text fontSize="sm" color="gray.600">
-                      {service.name} - {service.duration / 60}h session
+                      {service.name} - {service.duration} minute assessment
+                    </Text>
+                    <Text fontSize="xs" color="gray.500">
+                      Fixed price for all healthcare assessments
                     </Text>
                   </VStack>
                   <Text fontSize="2xl" fontWeight="bold" color="primary.500">
-                    ₦{service.price.toLocaleString()}
+                    {formatPrice(ASSESSMENT_PRICE)}
                   </Text>
                 </HStack>
               </CardBody>
@@ -548,33 +613,33 @@ const BookingForm: React.FC<BookingFormProps> = ({ service, onSubmit, onBack }) 
                 size="lg"
                 px={8}
               >
-                Back to Services
+                Back to Assessments
               </Button>
 
               <Button
                 type="submit"
-                variant="gradient"
+                colorScheme="primary"
                 size="lg"
                 px={8}
                 isLoading={isSubmitting}
-                loadingText="Booking..."
+                loadingText="Booking Assessment..."
                 className="hover-lift"
               >
-                Confirm Booking
+                Book Assessment - {formatPrice(ASSESSMENT_PRICE)}
               </Button>
             </HStack>
 
             {/* Terms Notice */}
             <Box textAlign="center" pt={4}>
               <Text fontSize="xs" color="gray.500">
-                By confirming this booking, you agree to our{' '}
+                By booking this assessment, you agree to our{' '}
                 <Text as="span" color="primary.500" textDecoration="underline" cursor="pointer">
                   Terms of Service
                 </Text>
                 {' '}and{' '}
                 <Text as="span" color="primary.500" textDecoration="underline" cursor="pointer">
                   Privacy Policy
-                </Text>
+                </Text>. Assessment fee is {formatPrice(ASSESSMENT_PRICE)} for all services.
               </Text>
             </Box>
           </VStack>

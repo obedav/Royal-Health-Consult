@@ -3,10 +3,10 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
-  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/users.entity';
 
@@ -16,18 +16,7 @@ export enum BookingStatus {
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
-  NO_SHOW = 'no_show',
-}
-
-export enum ServiceType {
-  HOME_NURSING = 'home_nursing',
-  ELDERLY_CARE = 'elderly_care',
-  POST_SURGERY_CARE = 'post_surgery_care',
-  CHRONIC_DISEASE_MANAGEMENT = 'chronic_disease_management',
-  WOUND_CARE = 'wound_care',
-  MEDICATION_ADMINISTRATION = 'medication_administration',
-  PHYSIOTHERAPY = 'physiotherapy',
-  HEALTH_MONITORING = 'health_monitoring',
+  RESCHEDULED = 'rescheduled'
 }
 
 export enum PaymentStatus {
@@ -35,6 +24,7 @@ export enum PaymentStatus {
   PAID = 'paid',
   FAILED = 'failed',
   REFUNDED = 'refunded',
+  CASH_ON_DELIVERY = 'cash_on_delivery'
 }
 
 @Entity('bookings')
@@ -42,55 +32,38 @@ export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'enum', enum: ServiceType })
-  serviceType: ServiceType;
+  // Assessment service details
+  @Column({ name: 'service_type' })
+  serviceType: string;
 
-  @Column()
+  @Column({ name: 'service_name' })
   serviceName: string;
 
-  @Column('text', { nullable: true })
+  @Column({ name: 'service_description', type: 'text' })
   serviceDescription: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ name: 'service_category', default: 'general' })
+  category: string;
+
+  // Pricing (always 5000 for assessments)
+  @Column({ name: 'base_price', type: 'decimal', precision: 10, scale: 2, default: 5000 })
   basePrice: number;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ name: 'total_price', type: 'decimal', precision: 10, scale: 2, default: 5000 })
   totalPrice: number;
 
-  @Column({ type: 'enum', enum: BookingStatus, default: BookingStatus.PENDING })
-  status: BookingStatus;
-
-  @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
-  paymentStatus: PaymentStatus;
-
-  // Patient Information
-  @ManyToOne(() => User, { eager: true })
-  @JoinColumn({ name: 'patient_id' })
-  patient: User;
-
-  @Column({ name: 'patient_id' })
-  patientId: string;
-
-  // Assigned Nurse
-  @ManyToOne(() => User, { nullable: true, eager: true })
-  @JoinColumn({ name: 'nurse_id' })
-  assignedNurse: User;
-
-  @Column({ name: 'nurse_id', nullable: true })
-  nurseId: string;
-
   // Scheduling
-  @Column('timestamp')
-  scheduledDate: Date;
+  @Column({ name: 'scheduled_date', type: 'date' })
+  scheduledDate: string;
 
-  @Column()
-  scheduledTime: string; // e.g., "09:00 AM"
+  @Column({ name: 'scheduled_time' })
+  scheduledTime: string;
 
-  @Column({ default: 60 })
-  duration: number; // in minutes
+  @Column({ name: 'duration', default: 60 })
+  duration: number; // minutes
 
-  // Location Details
-  @Column()
+  // Location
+  @Column({ name: 'patient_address', type: 'text' })
   patientAddress: string;
 
   @Column()
@@ -99,61 +72,84 @@ export class Booking {
   @Column()
   state: string;
 
-  @Column({ nullable: true })
-  postalCode: string;
+  // Medical information
+  @Column({ name: 'medical_conditions', type: 'text', nullable: true })
+  medicalConditions?: string;
 
-  @Column('text', { nullable: true })
-  specialInstructions: string;
+  @Column({ name: 'current_medications', type: 'text', nullable: true })
+  currentMedications?: string;
 
-  // Emergency Contact
-  @Column()
+  @Column({ name: 'allergies', type: 'text', nullable: true })
+  allergies?: string;
+
+  @Column({ name: 'special_requirements', type: 'text', nullable: true })
+  specialRequirements?: string;
+
+  // Emergency contact
+  @Column({ name: 'emergency_contact_name' })
   emergencyContactName: string;
 
-  @Column()
+  @Column({ name: 'emergency_contact_phone' })
   emergencyContactPhone: string;
 
-  // Medical Information
-  @Column('text', { nullable: true })
-  medicalConditions: string;
+  // Status tracking
+  @Column({
+    name: 'status',
+    type: 'enum',
+    enum: BookingStatus,
+    default: BookingStatus.PENDING
+  })
+  status: BookingStatus;
 
-  @Column('text', { nullable: true })
-  currentMedications: string;
+  @Column({
+    name: 'payment_status',
+    type: 'enum',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING
+  })
+  paymentStatus: PaymentStatus;
 
-  @Column('text', { nullable: true })
-  allergies: string;
+  @Column({ name: 'payment_method' })
+  paymentMethod: string;
 
-  // Payment Information
-  @Column({ nullable: true })
-  paymentReference: string;
+  // Relationships
+  @Column({ name: 'patient_id' })
+  patientId: string;
 
-  @Column({ nullable: true })
-  paymentMethod: string; // flutterwave, paystack, bank_transfer
+  @ManyToOne(() => User, { eager: true })
+  @JoinColumn({ name: 'patient_id' })
+  patient: User;
 
-  @Column('timestamp', { nullable: true })
-  paymentDate: Date;
+  @Column({ name: 'nurse_id', nullable: true })
+  nurseId?: string;
 
-  // Nigerian-specific fields
-  @Column({ default: 'NGN' })
-  currency: string;
+  @ManyToOne(() => User, { eager: false })
+  @JoinColumn({ name: 'nurse_id' })
+  nurse?: User;
 
-  @Column({ default: false })
-  requiresSpecialEquipment: boolean;
+  // Assessment-specific fields
+  @Column({ name: 'assessment_notes', type: 'text', nullable: true })
+  assessmentNotes?: string;
 
-  @Column('text', { nullable: true })
-  equipmentNeeded: string;
+  @Column({ name: 'assessment_recommendations', type: 'text', nullable: true })
+  assessmentRecommendations?: string;
 
-  @CreateDateColumn()
+  @Column({ name: 'follow_up_required', default: false })
+  followUpRequired: boolean;
+
+  @Column({ name: 'follow_up_date', type: 'date', nullable: true })
+  followUpDate?: string;
+
+  // Timestamps
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  // Computed properties
-  get isUpcoming(): boolean {
-    return this.scheduledDate > new Date() && this.status === BookingStatus.CONFIRMED;
-  }
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
+  completedAt?: Date;
 
-  get isPastDue(): boolean {
-    return this.scheduledDate < new Date() && this.status === BookingStatus.PENDING;
-  }
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  cancelledAt?: Date;
 }
