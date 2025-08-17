@@ -37,12 +37,16 @@ async function bootstrap() {
     logger.warn('CORS_ORIGIN not set, using default localhost:3000');
   }
   
-  app.enableCors({
-    origin: corsOrigin || 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+app.enableCors({
+  origin: [
+    corsOrigin || 'http://localhost:3000',
+    'https://royal-health.vercel.app', // Your actual Vercel URL
+    process.env.FRONTEND_URL
+  ].filter(Boolean), // Remove undefined values
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -113,7 +117,7 @@ async function bootstrap() {
     process.exit(0);
   });
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   logger.log(`🚀 Royal Health Consult API running on: http://localhost:${port}/${apiPrefix}`);
   logger.log(`🏥 Nigerian Healthcare Platform Backend Started Successfully`);
